@@ -1,0 +1,22 @@
+rules:
+  - id: sqs_not_encrypted
+    resource_type: sqs
+    category: STORAGE
+    severity: medium
+    title: SQS queue should be encrypted at rest
+    description: The SQS queue does not have server-side encryption (SSE) enabled
+    condition:
+      op: false
+      key: encrypted
+    required: false
+
+  - id: sqs_public_policy
+    resource_type: sqs
+    category: IDENTITY
+    severity: critical
+    title: SQS queue policy should not allow public access
+    description: The SQS queue has a resource policy that allows any principal (*) to send or receive messages
+    condition:
+      op: true
+      key: public_policy
+    required: true

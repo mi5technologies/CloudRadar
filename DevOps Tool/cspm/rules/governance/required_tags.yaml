@@ -1,0 +1,22 @@
+# Required tags for governance
+id: required_tag_owner
+resource_type: ec2
+category: GOVERNANCE
+severity: low
+title: Resource must have Owner tag
+description: Resource is missing required tag Owner
+condition:
+  op: false
+  key: has_tag_Owner
+required: false
+
+id: required_tag_env
+resource_type: ec2
+category: GOVERNANCE
+severity: low
+title: Resource must have Environment tag
+description: Resource is missing required tag Environment
+condition:
+  op: false
+  key: has_tag_Environment
+required: false

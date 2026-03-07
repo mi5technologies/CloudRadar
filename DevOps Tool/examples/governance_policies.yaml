@@ -1,0 +1,15 @@
+# Governance policy example
+# Use with CSPM governance checks
+
+required_tags:
+  - Owner
+  - Environment
+  - Project
+
+forbidden_instance_types:
+  - p3.16xlarge
+  - p2.16xlarge
+
+allowed_regions:
+  - us-east-1
+  - eu-west-1

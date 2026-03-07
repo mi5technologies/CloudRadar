@@ -1,0 +1,22 @@
+rules:
+  - id: vpc_default_in_use
+    resource_type: vpc
+    category: NETWORK
+    severity: medium
+    title: Default VPC should not be used
+    description: The default VPC is in use; workloads should use custom VPCs with least-privilege network design
+    condition:
+      op: true
+      key: is_default
+    required: false
+
+  - id: vpc_flow_logs_disabled
+    resource_type: vpc
+    category: NETWORK
+    severity: high
+    title: VPC flow logs should be enabled
+    description: VPC flow logs are not enabled; network traffic is not being monitored
+    condition:
+      op: false
+      key: flow_logs_enabled
+    required: true

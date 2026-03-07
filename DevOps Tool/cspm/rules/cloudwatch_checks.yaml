@@ -1,0 +1,77 @@
+rules:
+  - id: cw_root_usage
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: critical
+    title: CloudWatch alarm for root account usage
+    description: There is no CloudWatch metric filter and alarm monitoring root account usage (CIS 1.1)
+    condition:
+      op: false
+      key: filter_exists
+    required: true
+
+  - id: cw_iam_policy_change
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: high
+    title: CloudWatch alarm for IAM policy changes
+    description: There is no alarm monitoring IAM policy creation, deletion, or modification (CIS 3.4)
+    condition:
+      op: false
+      key: filter_exists
+    required: true
+
+  - id: cw_cloudtrail_change
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: high
+    title: CloudWatch alarm for CloudTrail configuration changes
+    description: There is no alarm monitoring CloudTrail configuration changes (CIS 3.5)
+    condition:
+      op: false
+      key: filter_exists
+    required: true
+
+  - id: cw_sg_change
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: medium
+    title: CloudWatch alarm for security group changes
+    description: There is no alarm monitoring security group rule changes (CIS 3.10)
+    condition:
+      op: false
+      key: filter_exists
+    required: false
+
+  - id: cw_vpc_change
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: medium
+    title: CloudWatch alarm for VPC changes
+    description: There is no alarm monitoring VPC creation, deletion, or modification (CIS 3.14)
+    condition:
+      op: false
+      key: filter_exists
+    required: false
+
+  - id: cw_kms_disable
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: high
+    title: CloudWatch alarm for KMS key disablement
+    description: There is no alarm monitoring KMS CMK disablement or deletion (CIS 3.7)
+    condition:
+      op: false
+      key: filter_exists
+    required: false
+
+  - id: cw_s3_bucket_policy
+    resource_type: cloudwatch_alarm
+    category: AUDIT
+    severity: medium
+    title: CloudWatch alarm for S3 bucket policy changes
+    description: There is no alarm monitoring S3 bucket policy changes (CIS 3.8)
+    condition:
+      op: false
+      key: filter_exists
+    required: false

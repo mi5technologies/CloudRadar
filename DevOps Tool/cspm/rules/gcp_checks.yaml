@@ -1,0 +1,29 @@
+rules:
+  - id: gcs_public_access
+    resource_type: gcs_bucket
+    category: STORAGE
+    severity: critical
+    title: GCS bucket should not be publicly accessible
+    condition: {op: true, key: is_public}
+    required: true
+
+  - id: gcs_no_uniform_access
+    resource_type: gcs_bucket
+    category: STORAGE
+    severity: medium
+    title: GCS bucket should use uniform bucket-level access
+    condition: {op: false, key: uniform_bucket_access}
+
+  - id: gce_public_ip
+    resource_type: gce_instance
+    category: COMPUTE
+    severity: high
+    title: GCE instance has a public IP address
+    condition: {op: true, key: has_public_ip}
+
+  - id: gcp_firewall_open_world
+    resource_type: gcp_firewall
+    category: NETWORK
+    severity: high
+    title: GCP firewall rule allows traffic from 0.0.0.0/0
+    condition: {op: true, key: allows_all_ingress}

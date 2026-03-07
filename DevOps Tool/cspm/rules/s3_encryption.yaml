@@ -1,0 +1,10 @@
+id: s3_encryption
+resource_type: s3
+category: STORAGE
+severity: medium
+title: S3 bucket should have encryption
+description: S3 bucket server-side encryption is not enabled
+condition:
+  op: false
+  key: encryption_enabled
+required: false

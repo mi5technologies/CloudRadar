@@ -1,0 +1,10 @@
+id: ec2_public_ip
+resource_type: ec2
+category: COMPUTE
+severity: medium
+title: EC2 instance should not have public IP when not needed
+description: EC2 has public IP; consider private subnet
+condition:
+  op: true
+  key: public_ip
+required: false

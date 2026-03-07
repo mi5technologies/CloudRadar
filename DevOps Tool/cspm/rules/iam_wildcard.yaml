@@ -1,0 +1,10 @@
+id: iam_wildcard_action
+resource_type: iam_role
+category: IDENTITY
+severity: medium
+title: IAM policy should avoid wildcard actions
+description: Inline or attached policy uses * in Action
+condition:
+  op: false
+  key: has_wildcard_action
+required: false

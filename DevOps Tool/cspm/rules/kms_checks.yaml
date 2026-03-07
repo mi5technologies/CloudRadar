@@ -1,0 +1,11 @@
+rules:
+  - id: kms_rotation_disabled
+    resource_type: kms
+    category: IDENTITY
+    severity: medium
+    title: KMS customer-managed key rotation should be enabled
+    description: Automatic annual key rotation is not enabled for this CMK
+    condition:
+      op: false
+      key: key_rotation_enabled
+    required: true

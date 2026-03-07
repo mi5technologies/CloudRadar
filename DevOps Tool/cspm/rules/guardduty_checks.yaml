@@ -1,0 +1,11 @@
+rules:
+  - id: guardduty_not_enabled
+    resource_type: guardduty
+    category: SECURITY_CONTROLS
+    severity: critical
+    title: GuardDuty should be enabled in this region
+    description: AWS GuardDuty is not enabled; threat detection is inactive
+    condition:
+      op: false
+      key: enabled
+    required: true

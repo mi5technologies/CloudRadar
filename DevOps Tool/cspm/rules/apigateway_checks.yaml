@@ -1,0 +1,22 @@
+rules:
+  - id: apigw_logging_disabled
+    resource_type: api_gateway
+    category: AUDIT
+    severity: medium
+    title: API Gateway stage should have logging enabled
+    description: No stages in this API have access logging configured
+    condition:
+      op: false
+      key: logging_enabled
+    required: false
+
+  - id: apigw_no_waf
+    resource_type: api_gateway
+    category: WAF
+    severity: high
+    title: API Gateway REST API should have WAF attached
+    description: This REST API does not have AWS WAF attached to any stage
+    condition:
+      op: false
+      key: waf_attached
+    required: false

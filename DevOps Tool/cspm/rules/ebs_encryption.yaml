@@ -1,0 +1,11 @@
+rules:
+  - id: ebs_volume_not_encrypted
+    resource_type: ebs
+    category: STORAGE
+    severity: high
+    title: EBS volume should be encrypted
+    description: EBS volume is not encrypted at rest; sensitive data may be exposed if the volume is accessed
+    condition:
+      op: false
+      key: encrypted
+    required: true

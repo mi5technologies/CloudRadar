@@ -1,0 +1,19 @@
+# Security controls (MFA, encryption, guardrails)
+rules:
+  - id: s3_block_public
+    resource_type: s3
+    category: SECURITY_CONTROLS
+    severity: high
+    title: S3 block public access at account level
+    description: Account-level S3 block public access should be enabled
+    required: true
+  - id: rds_encryption
+    resource_type: rds
+    category: SECURITY_CONTROLS
+    severity: medium
+    title: RDS storage should be encrypted
+    description: RDS instance storage is not encrypted
+    condition:
+      op: false
+      key: storage_encrypted
+    required: false
