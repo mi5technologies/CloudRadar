@@ -30,6 +30,19 @@
       <span class="strip-item">Risk <strong>{{ summary.risk_score ?? '—' }}</strong></span>
     </div>
 
+    <!-- Remediation progress bar -->
+    <div v-if="findings.length" class="rem-strip">
+      <div class="rem-strip-left">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Remediation progress
+        <span class="rem-pct" :style="{ color: remProgressColor }">{{ remProgress.percentage }}%</span>
+        <span class="rem-detail">· {{ remProgress.resolved }} fixed / {{ remProgress.remaining }} open</span>
+      </div>
+      <div class="rem-bar-wrap">
+        <div class="rem-bar" :style="{ width: remProgress.percentage + '%', background: remProgressColor }"></div>
+      </div>
+    </div>
+
     <!-- Cloud filter tabs (shown when findings from multiple clouds exist) -->
     <div v-if="cloudTabs.length > 1" class="cloud-tabs">
       <button
@@ -90,12 +103,17 @@
               <th>Resource type</th>
               <th>Resource ID</th>
               <th>Title</th>
+              <th style="width:90px;">Status</th>
               <th style="width:80px;"></th>
             </tr>
           </thead>
           <tbody>
             <template v-for="(f, i) in filteredFindings" :key="i">
-              <tr :class="'sev-row-' + (f.severity || 'medium')" @click="openSlide(f)" style="cursor:pointer;">
+              <tr
+                :class="['sev-row-' + (f.severity || 'medium'), isFindingFixed(f) ? 'row-fixed' : '']"
+                @click="openSlide(f)"
+                style="cursor:pointer;"
+              >
                 <td><span class="badge" :class="'badge-' + (f.severity || 'medium')">{{ f.severity || 'medium' }}</span></td>
                 <td>
                   <span class="cloud-chip" :class="'cc-' + (f.cloud || 'aws')" :title="(f.cloud||'aws').toUpperCase()">
@@ -107,6 +125,17 @@
                 <td>{{ f.resource_type || '—' }}</td>
                 <td><code class="resource-id">{{ f.resource_id || '—' }}</code></td>
                 <td>{{ f.title || '—' }}</td>
+                <td @click.stop>
+                  <button
+                    class="btn-mark-fixed"
+                    :class="isFindingFixed(f) ? 'btn-fixed' : 'btn-open'"
+                    @click="toggleFixed(f)"
+                    :title="isFindingFixed(f) ? 'Click to re-open this finding' : 'Mark as fixed'"
+                  >
+                    <svg v-if="isFindingFixed(f)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    {{ isFindingFixed(f) ? 'Fixed' : 'Mark fixed' }}
+                  </button>
+                </td>
                 <td @click.stop>
                   <button
                     v-if="isRemediable(f)"
@@ -156,6 +185,20 @@
             <button class="close-btn" @click="slideOver = null">×</button>
           </div>
           <div class="slideover-body">
+            <!-- Remediation status -->
+            <div class="so-fix-status">
+              <button
+                class="btn-mark-fixed btn-mark-fixed-lg"
+                :class="isFindingFixed(slideOver) ? 'btn-fixed' : 'btn-open'"
+                @click="toggleFixed(slideOver)"
+              >
+                <svg v-if="isFindingFixed(slideOver)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                {{ isFindingFixed(slideOver) ? 'Mark as re-opened' : 'Mark as fixed' }}
+              </button>
+              <span v-if="isFindingFixed(slideOver)" class="so-fixed-hint">This finding is marked as fixed. Your risk score is adjusted.</span>
+            </div>
+
             <!-- Metadata -->
             <div class="so-meta">
               <div v-if="slideOver.cloud" class="so-meta-item"><span class="so-meta-label">Cloud</span><span>{{ slideOver.cloud.toUpperCase() }}</span></div>
@@ -219,6 +262,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import api from '../api'
 import { getRecommendation } from '../utils/recommendations'
+import { markFixed, unmarkFixed, isFixed, computeRemediationScore } from '../utils/remediationStore'
 
 const CLOUD_META = {
   aws:   { label: 'AWS',          icon: `<svg width="12" height="8" viewBox="0 0 80 48" fill="none"><path d="M22.9 32.2c-4.5 2.4-9.4 3.7-14.5 3.7C3.8 35.9 0 32.1 0 27.3c0-5.3 4.5-9.6 10.7-10.2-.3-1.1-.5-2.3-.5-3.6C10.2 6.1 15.9 1 22.9 1c3.4 0 6.5 1.2 8.9 3.2 2.2-4.3 6.7-7.2 11.7-7.2 4.3 0 8.2 1.9 10.8 5 1.9-.7 3.9-1.1 6-1.1C68 1 75 8 75 16.8c0 1.8-.3 3.5-.8 5.1C77.4 23.5 80 27 80 31.1 80 36.8 75.3 41 69.2 41H22.9z" fill="#FF9900"/></svg>` },
@@ -249,6 +293,37 @@ const slideRec = computed(() => slideOver.value ? getRecommendation(slideOver.va
 watch(slideOver, () => {
   showRaw.value = false
   soRemState.value = { dry_run: true, region: 'us-east-1', loading: false, result: '', ok: false }
+})
+
+// Remediation progress tracking
+const fixedVersion = ref(0)  // bump to force recompute after toggle
+
+function isFindingFixed(f) {
+  // eslint-disable-next-line no-unused-expressions
+  fixedVersion.value  // track reactively
+  return isFixed(f)
+}
+
+function toggleFixed(f) {
+  if (isFixed(f)) {
+    unmarkFixed(f)
+  } else {
+    markFixed(f)
+  }
+  fixedVersion.value++
+}
+
+const remProgress = computed(() => {
+  // eslint-disable-next-line no-unused-expressions
+  fixedVersion.value
+  return computeRemediationScore(findings.value)
+})
+
+const remProgressColor = computed(() => {
+  const pct = remProgress.value.percentage
+  if (pct >= 75) return '#22c55e'
+  if (pct >= 40) return '#eab308'
+  return '#f97316'
 })
 
 const sevCounts = computed(() => {
@@ -497,4 +572,27 @@ onMounted(load)
 .slide-fade-enter-from .slideover, .slide-fade-leave-to .slideover { transform: translateX(100%); }
 .slide-fade-enter-from { opacity: 0; }
 .slide-fade-leave-to   { opacity: 0; }
+
+/* ── Remediation progress strip ── */
+.rem-strip { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: rgba(15,23,42,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; font-size: 0.82rem; flex-wrap: wrap; }
+.rem-strip-left { display: flex; align-items: center; gap: 7px; color: var(--text-muted); flex-shrink: 0; }
+.rem-pct { font-weight: 700; }
+.rem-detail { color: var(--text-muted); }
+.rem-bar-wrap { flex: 1; min-width: 100px; height: 7px; background: rgba(148,163,184,0.1); border-radius: 10px; overflow: hidden; }
+.rem-bar { height: 100%; border-radius: 10px; transition: width 0.4s ease, background 0.3s; }
+
+/* ── Mark fixed button ── */
+.btn-mark-fixed { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-open  { background: rgba(148,163,184,0.1); color: var(--text-muted); }
+.btn-open:hover  { background: rgba(34,197,94,0.14); color: #86efac; }
+.btn-fixed { background: rgba(34,197,94,0.14); color: #86efac; }
+.btn-fixed:hover { background: rgba(239,68,68,0.1); color: #fca5a5; }
+.btn-mark-fixed-lg { padding: 8px 16px; font-size: 0.86rem; }
+
+.row-fixed td { opacity: 0.5; }
+.row-fixed:hover td { opacity: 0.75; }
+
+/* SO fix status */
+.so-fix-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.so-fixed-hint { font-size: 0.78rem; color: #86efac; }
 </style>
