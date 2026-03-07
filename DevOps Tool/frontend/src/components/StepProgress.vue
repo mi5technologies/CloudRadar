@@ -75,7 +75,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { getRecommendation, SEV_ORDER } from '../utils/recommendations'
+import { getRecommendation, getTopRecsForCloud, SEV_ORDER } from '../utils/recommendations'
 
 const props = defineProps({
   title:     { type: String,  default: 'Execution' },
@@ -91,6 +91,7 @@ const highCount     = computed(() => props.summary?.high ?? 0)
 const mediumCount   = computed(() => props.summary?.medium ?? 0)
 const lowCount      = computed(() => props.summary?.low ?? 0)
 const totalFindings = computed(() => props.summary?.findings_count ?? 0)
+const scanCloud     = computed(() => (props.summary?.cloud || 'aws').toLowerCase())
 
 function riskClass(score) {
   const n = typeof score === 'number' ? score : parseFloat(score)
@@ -100,20 +101,20 @@ function riskClass(score) {
   return 'risk-low'
 }
 
-// Build top 3 recommendations from summary findings if available
+// Build top 3 recommendations — cloud-aware
 const topRecs = computed(() => {
   const findings = props.summary?.top_findings || props.summary?.findings || []
-  if (!findings.length) {
-    // If no findings array, synthesise from severity counts
-    const recs = []
-    if (criticalCount.value > 0) recs.push(getRecommendation({ severity: 'critical', rule_id: 'sg.ssh_open' }))
-    if (highCount.value > 0)     recs.push(getRecommendation({ severity: 'high',     rule_id: 's3.no_encryption' }))
-    return recs.slice(0, 3)
+  if (findings.length) {
+    const sorted = [...findings].sort((a, b) =>
+      (SEV_ORDER[(a.severity||'medium').toLowerCase()] ?? 4) - (SEV_ORDER[(b.severity||'medium').toLowerCase()] ?? 4)
+    )
+    return sorted.slice(0, 3).map(f => getRecommendation({ ...f, cloud: scanCloud.value })).filter(Boolean)
   }
-  const sorted = [...findings].sort((a, b) =>
-    (SEV_ORDER[(a.severity||'medium').toLowerCase()] ?? 4) - (SEV_ORDER[(b.severity||'medium').toLowerCase()] ?? 4)
-  )
-  return sorted.slice(0, 3).map(f => getRecommendation(f)).filter(Boolean)
+  return getTopRecsForCloud(scanCloud.value, {
+    critical: criticalCount.value,
+    high:     highCount.value,
+    medium:   mediumCount.value,
+  }, 3)
 })
 </script>
 

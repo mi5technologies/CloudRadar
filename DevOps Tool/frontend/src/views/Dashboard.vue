@@ -14,6 +14,21 @@
       </div>
     </div>
 
+    <!-- Cloud tabs -->
+    <div class="cloud-tabs">
+      <button
+        v-for="c in CLOUDS"
+        :key="c.id"
+        class="cloud-tab"
+        :class="{ active: selectedCloud === c.id, ['cloud-tab-' + c.id]: true }"
+        @click="switchCloud(c.id)"
+      >
+        <span class="cloud-tab-icon" v-html="c.icon"></span>
+        <span class="cloud-tab-label">{{ c.label }}</span>
+        <span class="cloud-tab-badge" v-if="cloudHistoryCount(c.id) > 0">{{ cloudHistoryCount(c.id) }}</span>
+      </button>
+    </div>
+
     <!-- KPI cards -->
     <div class="metric-grid">
       <div class="metric-card metric-scan">
@@ -24,6 +39,7 @@
           <span class="metric-label">Last scan</span>
           <span class="metric-value">{{ lastScan ? formatRelative(lastScan.timestamp) : '—' }}</span>
           <span class="metric-sub" v-if="lastScan">{{ (lastScan.cloud||'').toUpperCase() }} · {{ lastScan.region || '' }}</span>
+          <span class="metric-sub" v-else>No scans for {{ cloudLabel }}</span>
         </div>
       </div>
       <div class="metric-card metric-findings">
@@ -32,8 +48,8 @@
         </div>
         <div class="metric-info">
           <span class="metric-label">Total findings</span>
-          <span class="metric-value">{{ summaryData?.findings_count ?? lastScan?.findings_count ?? '—' }}</span>
-          <span class="metric-sub">from latest scan</span>
+          <span class="metric-value">{{ lastScan?.findings_count ?? (summaryCloud ? summaryData?.findings_count : null) ?? '—' }}</span>
+          <span class="metric-sub">from latest {{ cloudLabel }} scan</span>
         </div>
       </div>
       <div class="metric-card metric-risk">
@@ -42,7 +58,7 @@
         </div>
         <div class="metric-info">
           <span class="metric-label">Risk score</span>
-          <span class="metric-value" :style="{ color: riskIconColor }">{{ summaryData?.summary?.risk_score ?? lastScan?.risk_score ?? '—' }}</span>
+          <span class="metric-value" :style="{ color: riskIconColor }">{{ riskScore ?? '—' }}</span>
           <span class="metric-sub">{{ riskLabel }}</span>
         </div>
       </div>
@@ -65,8 +81,11 @@
         <div class="chart-wrap donut-wrap">
           <canvas ref="donutCanvas" width="200" height="200"></canvas>
           <div class="donut-center" v-if="lastScan">
-            <span class="donut-num">{{ (lastScan.findings_count || 0) }}</span>
+            <span class="donut-num">{{ lastScan.findings_count || 0 }}</span>
             <span class="donut-lbl">total</span>
+          </div>
+          <div class="donut-center" v-else>
+            <span class="donut-num" style="color:var(--text-muted);font-size:1rem;">No data</span>
           </div>
         </div>
         <div class="legend">
@@ -82,25 +101,30 @@
         <div class="chart-wrap">
           <canvas ref="lineCanvas"></canvas>
         </div>
-        <p v-if="history.length < 2" class="chart-hint muted">Run more scans to see trend data.</p>
+        <p v-if="cloudHistory.length < 2" class="chart-hint muted">
+          {{ cloudHistory.length === 0 ? 'No ' + cloudLabel + ' scans recorded yet.' : 'Run more scans to see the trend.' }}
+        </p>
       </div>
 
       <div class="card chart-card">
-        <h2>Scan history</h2>
+        <h2>Findings per scan</h2>
         <div class="chart-wrap">
           <canvas ref="barCanvas"></canvas>
         </div>
-        <p v-if="!history.length" class="chart-hint muted">No history yet.</p>
+        <p v-if="!cloudHistory.length" class="chart-hint muted">No {{ cloudLabel }} history yet.</p>
       </div>
     </div>
 
     <!-- Top recommendations -->
     <div class="card" v-if="topRecs.length">
       <div class="card-head">
-        <h2>Top recommendations</h2>
+        <h2>
+          <span class="cloud-badge-inline" :class="'cloud-' + selectedCloud">{{ cloudLabel }}</span>
+          Top recommendations
+        </h2>
         <router-link to="/findings" class="btn btn-secondary btn-sm-text">View all findings →</router-link>
       </div>
-      <p class="muted" style="margin-bottom:14px;">Highest-priority actions based on the latest scan.</p>
+      <p class="muted" style="margin-bottom:14px;">Highest-priority actions for your {{ cloudLabel }} environment based on the latest scan.</p>
       <div class="recs-list">
         <div v-for="(rec, i) in topRecs" :key="i" class="rec-item" :class="'rec-sev-' + rec.severity">
           <div class="rec-num">{{ i + 1 }}</div>
@@ -115,9 +139,21 @@
               {{ rec.fix[0] }}
             </p>
           </div>
-          <a v-if="rec.docs" :href="rec.docs" target="_blank" rel="noopener" class="rec-docs-btn" title="AWS docs">
+          <a v-if="rec.docs" :href="rec.docs" target="_blank" rel="noopener" class="rec-docs-btn" title="Docs">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- No-scan state for this cloud -->
+    <div v-else-if="!cloudHistory.length" class="card no-scan-card">
+      <div class="no-scan-inner">
+        <span class="no-scan-icon" v-html="currentCloudObj.icon"></span>
+        <div>
+          <h3>No {{ cloudLabel }} scans yet</h3>
+          <p class="muted">Run a security scan for {{ cloudLabel }} to see recommendations, charts, and findings here.</p>
+          <router-link to="/security/scan" class="btn btn-primary" style="margin-top:10px;">Run {{ cloudLabel }} Scan</router-link>
         </div>
       </div>
     </div>
@@ -127,43 +163,75 @@
       <div class="card">
         <h2>Quick actions</h2>
         <div class="quick-actions">
-          <router-link to="/security/scan"         class="qa-btn"><span class="qa-icon">🔍</span><span>Security Scan</span></router-link>
-          <router-link to="/findings"              class="qa-btn"><span class="qa-icon">📋</span><span>Findings</span></router-link>
-          <router-link to="/compliance"            class="qa-btn"><span class="qa-icon">✅</span><span>Compliance</span></router-link>
+          <router-link to="/security/scan"            class="qa-btn"><span class="qa-icon">🔍</span><span>Security Scan</span></router-link>
+          <router-link to="/findings"                 class="qa-btn"><span class="qa-icon">📋</span><span>Findings</span></router-link>
+          <router-link to="/compliance"               class="qa-btn"><span class="qa-icon">✅</span><span>Compliance</span></router-link>
           <router-link to="/security/vulnerabilities" class="qa-btn"><span class="qa-icon">🛡️</span><span>Vulnerabilities</span></router-link>
-          <router-link to="/audit/assets"          class="qa-btn"><span class="qa-icon">📦</span><span>Assets</span></router-link>
-          <router-link to="/scan-history"          class="qa-btn"><span class="qa-icon">📅</span><span>Scan History</span></router-link>
-          <router-link to="/security/attack-paths" class="qa-btn"><span class="qa-icon">⛓</span><span>Attack Paths</span></router-link>
+          <router-link to="/audit/assets"             class="qa-btn"><span class="qa-icon">📦</span><span>Assets</span></router-link>
+          <router-link to="/scan-history"             class="qa-btn"><span class="qa-icon">📅</span><span>Scan History</span></router-link>
+          <router-link to="/security/attack-paths"    class="qa-btn"><span class="qa-icon">⛓</span><span>Attack Paths</span></router-link>
           <router-link :to="{ path: '/setup', query: { cloud: selectedCloud } }" class="qa-btn"><span class="qa-icon">⚙️</span><span>Setup</span></router-link>
         </div>
         <p class="palette-hint muted">Tip: press <kbd>Ctrl+K</kbd> to open the command palette.</p>
       </div>
       <div class="card" v-if="cloudStatus">
-        <h2>Cloud status</h2>
+        <h2>{{ cloudLabel }} connection</h2>
         <div class="status-block">
-          <span class="status-cloud">{{ selectedCloudLabel }}</span>
+          <span class="status-cloud">{{ cloudLabel }}</span>
           <span class="status-mode" :class="cloudStatus.mode !== 'none' ? 'status-ok' : 'status-none'">
             {{ cloudStatus.mode === 'none' ? 'Not configured' : cloudStatus.mode }}
           </span>
         </div>
         <p class="muted" style="font-size:0.82rem;" v-if="cloudStatus.region">Region: <strong>{{ cloudStatus.region }}</strong></p>
+        <p class="muted" style="font-size:0.82rem;" v-if="cloudStatus.project_id">Project: <strong>{{ cloudStatus.project_id }}</strong></p>
+        <p class="muted" style="font-size:0.82rem;" v-if="cloudStatus.subscription_id">Subscription: <strong>{{ cloudStatus.subscription_id }}</strong></p>
+        <router-link :to="{ path: '/setup', query: { cloud: selectedCloud } }" class="btn btn-secondary" style="margin-top:10px;font-size:0.82rem;padding:6px 12px;">
+          {{ cloudStatus.mode === 'none' ? 'Configure ' + cloudLabel : 'Update credentials' }}
+        </router-link>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, PointElement, LinearScale, CategoryScale, BarElement, BarController, Tooltip, Legend, Filler } from 'chart.js'
 import api from '../api'
-import { RECOMMENDATIONS, SEV_ORDER } from '../utils/recommendations'
+import { getTopRecsForCloud } from '../utils/recommendations'
 
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, PointElement, LinearScale, CategoryScale, BarElement, BarController, Tooltip, Legend, Filler)
+
+const CLOUDS = [
+  {
+    id: 'aws', label: 'AWS',
+    icon: `<svg width="20" height="20" viewBox="0 0 80 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.9 32.2c-4.5 2.4-9.4 3.7-14.5 3.7C3.8 35.9 0 32.1 0 27.3c0-5.3 4.5-9.6 10.7-10.2-.3-1.1-.5-2.3-.5-3.6C10.2 6.1 15.9 1 22.9 1c3.4 0 6.5 1.2 8.9 3.2 2.2-4.3 6.7-7.2 11.7-7.2 4.3 0 8.2 1.9 10.8 5 1.9-.7 3.9-1.1 6-1.1C68 1 75 8 75 16.8c0 1.8-.3 3.5-.8 5.1C77.4 23.5 80 27 80 31.1 80 36.8 75.3 41 69.2 41H22.9z" fill="#FF9900"/></svg>`,
+    accentColor: '#FF9900',
+    tabBg: 'rgba(255,153,0,0.08)',
+    tabActiveBg: 'rgba(255,153,0,0.18)',
+    tabBorder: 'rgba(255,153,0,0.3)',
+  },
+  {
+    id: 'gcp', label: 'Google Cloud',
+    icon: `<svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M30.2 17.8H24v4.2h6.9c-.7 3.7-4 6.5-7.9 6.5-4.5 0-8.2-3.7-8.2-8.2s3.7-8.2 8.2-8.2c2.1 0 4 .8 5.5 2.1l3-3C29 8.6 26.7 7.5 24 7.5c-7.5 0-13.5 6-13.5 13.5S16.5 34.5 24 34.5c7.2 0 12.8-5 12.8-13.5 0-.8-.1-1.5-.2-2.2l-6.4-1z"/><path fill="#EA4335" d="M12.8 30.6l-3 3C12 35.8 14.7 37 17.8 37c.8 0 1.5-.1 2.2-.2l-1-3.9c-.5.1-1 .2-1.5.2-1.7 0-3.3-.5-4.7-1.4l-1 -1.1z"/><circle fill="#FBBC05" cx="24" cy="21" r="3"/></svg>`,
+    accentColor: '#4285F4',
+    tabBg: 'rgba(66,133,244,0.08)',
+    tabActiveBg: 'rgba(66,133,244,0.18)',
+    tabBorder: 'rgba(66,133,244,0.3)',
+  },
+  {
+    id: 'azure', label: 'Azure',
+    icon: `<svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#0078D4" d="M27 4L13 28l9 5-7 7h16l7-36z"/><path fill="#50E6FF" d="M27 4L4 34l9-1 7-7-3-5z"/></svg>`,
+    accentColor: '#0078D4',
+    tabBg: 'rgba(0,120,212,0.08)',
+    tabActiveBg: 'rgba(0,120,212,0.18)',
+    tabBorder: 'rgba(0,120,212,0.3)',
+  },
+]
 
 const statusMap    = ref(null)
 const summaryData  = ref(null)
 const selectedCloud = ref('aws')
-const history      = ref([])
+const allHistory   = ref([])
 
 const donutCanvas  = ref(null)
 const lineCanvas   = ref(null)
@@ -173,13 +241,23 @@ let donutChart = null
 let lineChart  = null
 let barChart   = null
 
-const selectedCloudLabel = computed(() => ({ aws: 'AWS', gcp: 'GCP', azure: 'Azure' }[selectedCloud.value] || 'Cloud'))
-const cloudStatus = computed(() => statusMap.value ? (statusMap.value[selectedCloud.value] || statusMap.value.aws) : null)
+const currentCloudObj = computed(() => CLOUDS.find(c => c.id === selectedCloud.value) || CLOUDS[0])
+const cloudLabel      = computed(() => currentCloudObj.value.label)
+const cloudStatus     = computed(() => statusMap.value ? (statusMap.value[selectedCloud.value] || null) : null)
+const summaryCloud    = computed(() => (summaryData.value?.cloud || '').toLowerCase() === selectedCloud.value)
 
-const lastScan = computed(() => history.value[0] || null)
+// History filtered to selected cloud
+const cloudHistory = computed(() =>
+  allHistory.value.filter(s => (s.cloud || 'aws').toLowerCase() === selectedCloud.value)
+)
+const lastScan = computed(() => cloudHistory.value[0] || null)
+
+function cloudHistoryCount(id) {
+  return allHistory.value.filter(s => (s.cloud || 'aws').toLowerCase() === id).length
+}
 
 const riskScore = computed(() => {
-  const s = summaryData.value?.summary?.risk_score ?? lastScan.value?.risk_score
+  const s = (summaryCloud.value ? summaryData.value?.summary?.risk_score : null) ?? lastScan.value?.risk_score
   return s != null ? parseFloat(s) : null
 })
 const riskIconColor = computed(() => {
@@ -217,40 +295,25 @@ function formatRelative(iso) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-// Top 5 recommendations built from saved history critical/high findings
-const topRecs = computed(() => {
-  const scan = lastScan.value
-  if (!scan) return []
-  const candidates = []
-  if ((scan.critical || 0) > 0) {
-    candidates.push(RECOMMENDATIONS['sg.ssh_open'])
-    candidates.push(RECOMMENDATIONS['s3.public_access'])
-    candidates.push(RECOMMENDATIONS['iam.wildcard_action'])
-  }
-  if ((scan.high || 0) > 0) {
-    candidates.push(RECOMMENDATIONS['s3.no_encryption'])
-    candidates.push(RECOMMENDATIONS['rds.publicly_accessible'])
-    candidates.push(RECOMMENDATIONS['iam.unused_keys'])
-    candidates.push(RECOMMENDATIONS['guardduty.disabled'])
-  }
-  if ((scan.medium || 0) > 0) {
-    candidates.push(RECOMMENDATIONS['kms.no_rotation'])
-    candidates.push(RECOMMENDATIONS['vpc.no_flow_logs'])
-  }
-  const seen = new Set()
-  return candidates.filter(r => {
-    if (!r || seen.has(r.title)) return false
-    seen.add(r.title)
-    return true
-  }).slice(0, 5)
-})
+// Top recommendations — cloud-aware
+const topRecs = computed(() =>
+  getTopRecsForCloud(selectedCloud.value, {
+    critical: lastScan.value?.critical || 0,
+    high:     lastScan.value?.high || 0,
+    medium:   lastScan.value?.medium || 0,
+  }, 5)
+)
 
+function switchCloud(id) {
+  selectedCloud.value = id
+  try { localStorage.setItem('cspm_cloud', id) } catch (_) {}
+}
+
+// ── Chart builders ───────────────────────────────────────────────────────────
 function buildDonut() {
   if (!donutCanvas.value) return
   const scan = lastScan.value
-  const data = scan
-    ? [scan.critical||0, scan.high||0, scan.medium||0, scan.low||0]
-    : [1, 1, 1, 1]
+  const data = scan ? [scan.critical||0, scan.high||0, scan.medium||0, scan.low||0] : [1,1,1,1]
   const isEmpty = !scan
   if (donutChart) donutChart.destroy()
   donutChart = new Chart(donutCanvas.value, {
@@ -269,30 +332,31 @@ function buildDonut() {
     options: {
       cutout: '68%',
       plugins: { legend: { display: false }, tooltip: { enabled: !isEmpty } },
-      animation: { duration: 600 },
+      animation: { duration: 500 },
     },
   })
 }
 
 function buildLine() {
-  if (!lineCanvas.value || history.value.length < 2) return
-  const sliced = [...history.value].reverse().slice(-10)
+  if (!lineCanvas.value) return
+  if (lineChart) { lineChart.destroy(); lineChart = null }
+  if (cloudHistory.value.length < 2) return
+  const sliced = [...cloudHistory.value].reverse().slice(-10)
   const labels = sliced.map(s => {
     const d = new Date(s.timestamp)
     return `${d.getMonth()+1}/${d.getDate()}`
   })
-  const scores = sliced.map(s => parseFloat(s.risk_score) || 0)
-  if (lineChart) lineChart.destroy()
+  const accentColor = currentCloudObj.value.accentColor
   lineChart = new Chart(lineCanvas.value, {
     type: 'line',
     data: {
       labels,
       datasets: [{
         label: 'Risk score',
-        data: scores,
-        borderColor: '#0ea5e9',
-        backgroundColor: 'rgba(14,165,233,0.08)',
-        pointBackgroundColor: '#0ea5e9',
+        data: sliced.map(s => parseFloat(s.risk_score) || 0),
+        borderColor: accentColor,
+        backgroundColor: accentColor + '18',
+        pointBackgroundColor: accentColor,
         tension: 0.35,
         fill: true,
         pointRadius: 4,
@@ -305,28 +369,29 @@ function buildLine() {
         x: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#64748b', font: { size: 11 } } },
         y: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#64748b', font: { size: 11 } }, min: 0, max: 100 },
       },
-      animation: { duration: 500 },
+      animation: { duration: 400 },
     },
   })
 }
 
 function buildBar() {
-  if (!barCanvas.value || !history.value.length) return
-  const sliced = [...history.value].reverse().slice(-8)
+  if (!barCanvas.value) return
+  if (barChart) { barChart.destroy(); barChart = null }
+  if (!cloudHistory.value.length) return
+  const sliced = [...cloudHistory.value].reverse().slice(-8)
   const labels = sliced.map(s => {
     const d = new Date(s.timestamp)
     return `${d.getMonth()+1}/${d.getDate()}`
   })
-  if (barChart) barChart.destroy()
   barChart = new Chart(barCanvas.value, {
     type: 'bar',
     data: {
       labels,
       datasets: [
-        { label: 'Critical', data: sliced.map(s => s.critical||0), backgroundColor: 'rgba(239,68,68,0.7)',  borderRadius: 4, stack: 'sev' },
-        { label: 'High',     data: sliced.map(s => s.high||0),     backgroundColor: 'rgba(249,115,22,0.7)', borderRadius: 4, stack: 'sev' },
-        { label: 'Medium',   data: sliced.map(s => s.medium||0),   backgroundColor: 'rgba(234,179,8,0.7)',  borderRadius: 4, stack: 'sev' },
-        { label: 'Low',      data: sliced.map(s => s.low||0),      backgroundColor: 'rgba(34,197,94,0.7)',  borderRadius: 4, stack: 'sev' },
+        { label: 'Critical', data: sliced.map(s => s.critical||0), backgroundColor: 'rgba(239,68,68,0.75)',  borderRadius: 3, stack: 'sev' },
+        { label: 'High',     data: sliced.map(s => s.high||0),     backgroundColor: 'rgba(249,115,22,0.75)', borderRadius: 3, stack: 'sev' },
+        { label: 'Medium',   data: sliced.map(s => s.medium||0),   backgroundColor: 'rgba(234,179,8,0.75)',  borderRadius: 3, stack: 'sev' },
+        { label: 'Low',      data: sliced.map(s => s.low||0),      backgroundColor: 'rgba(34,197,94,0.75)',  borderRadius: 3, stack: 'sev' },
       ],
     },
     options: {
@@ -337,29 +402,53 @@ function buildBar() {
         x: { stacked: true, grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#64748b', font: { size: 11 } } },
         y: { stacked: true, grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#64748b', font: { size: 11 } } },
       },
-      animation: { duration: 500 },
+      animation: { duration: 400 },
     },
   })
 }
 
+function rebuildCharts() {
+  nextTick(() => {
+    buildDonut()
+    buildLine()
+    buildBar()
+  })
+}
+
+// Rebuild charts whenever the cloud tab changes
+watch(selectedCloud, rebuildCharts)
+
 onMounted(async () => {
   try { selectedCloud.value = localStorage.getItem('cspm_cloud') || 'aws' } catch (_) {}
-  try { history.value = JSON.parse(localStorage.getItem('cspm_scan_history') || '[]') } catch (_) {}
+  try { allHistory.value = JSON.parse(localStorage.getItem('cspm_scan_history') || '[]') } catch (_) {}
   try { statusMap.value = await api.getStatus() } catch { statusMap.value = { aws: { mode: 'none' }, gcp: { mode: 'none' }, azure: { mode: 'none' } } }
   try { summaryData.value = await api.getSummary() } catch { summaryData.value = null }
-  await nextTick()
-  buildDonut()
-  buildLine()
-  buildBar()
+  rebuildCharts()
 })
 </script>
 
 <style scoped>
-.dash-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+.dash-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
 .dash-header-actions { display: flex; gap: 8px; }
-.btn svg { vertical-align: middle; }
 
-/* KPI cards */
+/* ── Cloud tabs ── */
+.cloud-tabs { display: flex; gap: 6px; margin-bottom: 22px; flex-wrap: wrap; }
+.cloud-tab {
+  display: flex; align-items: center; gap: 8px; padding: 9px 16px;
+  border-radius: 10px; border: 1px solid var(--border); cursor: pointer;
+  background: rgba(15,23,42,0.4); color: var(--text-muted);
+  font-size: 0.88rem; font-weight: 500; transition: all 0.15s;
+}
+.cloud-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.cloud-tab.active { color: var(--text); font-weight: 600; }
+.cloud-tab-aws.active    { background: rgba(255,153,0,0.14); border-color: rgba(255,153,0,0.35); }
+.cloud-tab-gcp.active    { background: rgba(66,133,244,0.14); border-color: rgba(66,133,244,0.35); }
+.cloud-tab-azure.active  { background: rgba(0,120,212,0.14);  border-color: rgba(0,120,212,0.35); }
+.cloud-tab-icon { display: flex; align-items: center; flex-shrink: 0; }
+.cloud-tab-label { white-space: nowrap; }
+.cloud-tab-badge { padding: 1px 7px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; background: rgba(14,165,233,0.15); color: var(--accent); }
+
+/* ── KPI cards ── */
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
 .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; transition: box-shadow 0.15s; }
 .metric-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
@@ -373,7 +462,7 @@ onMounted(async () => {
 .metric-value { font-size: 1.35rem; font-weight: 700; color: var(--text); line-height: 1.2; }
 .metric-sub   { font-size: 0.72rem; color: var(--text-muted); }
 
-/* Charts */
+/* ── Charts ── */
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-bottom: 22px; }
 .chart-card h2 { font-size: 0.9rem; margin: 0 0 14px; }
 .chart-wrap { position: relative; height: 200px; display: flex; align-items: center; justify-content: center; }
@@ -387,9 +476,13 @@ onMounted(async () => {
 .legend-item strong { color: var(--text); margin-left: 2px; }
 .chart-hint { font-size: 0.78rem; margin-top: 8px; }
 
-/* Top recommendations */
-.card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 0; }
+/* ── Top recommendations ── */
+.card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
 .btn-sm-text { font-size: 0.82rem; padding: 6px 12px; }
+.cloud-badge-inline { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; margin-right: 6px; }
+.cloud-badge-inline.cloud-aws   { background: rgba(255,153,0,0.15); color: #fb923c; }
+.cloud-badge-inline.cloud-gcp   { background: rgba(66,133,244,0.15); color: #60a5fa; }
+.cloud-badge-inline.cloud-azure { background: rgba(0,120,212,0.15);  color: #93c5fd; }
 .recs-list { display: flex; flex-direction: column; gap: 8px; }
 .rec-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-radius: 10px; background: rgba(15,23,42,0.4); border: 1px solid var(--border); transition: background 0.15s, border-color 0.15s; }
 .rec-item:hover { background: rgba(14,165,233,0.05); border-color: rgba(14,165,233,0.2); }
@@ -409,14 +502,21 @@ onMounted(async () => {
 .rec-what     { font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.4; }
 .rec-fix-first { font-size: 0.78rem; color: var(--accent); margin: 0; display: flex; align-items: flex-start; gap: 6px; line-height: 1.4; }
 .rec-fix-first svg { flex-shrink: 0; margin-top: 2px; }
-.rec-docs-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(148,163,184,0.08); color: var(--text-muted); transition: background 0.15s, color 0.15s; flex-shrink: 0; margin-top: 2px; text-decoration: none; }
+.rec-docs-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(148,163,184,0.08); color: var(--text-muted); transition: all 0.15s; flex-shrink: 0; margin-top: 2px; text-decoration: none; }
 .rec-docs-btn:hover { background: rgba(14,165,233,0.12); color: var(--accent); }
 
-/* Bottom grid */
+/* ── No scan state ── */
+.no-scan-card { text-align: left; }
+.no-scan-inner { display: flex; align-items: flex-start; gap: 20px; padding: 10px 0; flex-wrap: wrap; }
+.no-scan-icon { font-size: 2.5rem; display: flex; align-items: center; flex-shrink: 0; }
+.no-scan-inner h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.no-scan-inner p  { margin: 0; font-size: 0.88rem; }
+
+/* ── Bottom grid ── */
 .bottom-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
 @media (max-width: 680px) { .bottom-grid { grid-template-columns: 1fr; } }
 .quick-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 14px; }
-.qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 10px; background: rgba(15,23,42,0.5); border: 1px solid var(--border); text-decoration: none; color: var(--text-muted); font-size: 0.78rem; font-weight: 500; transition: background 0.15s, color 0.15s; text-align: center; }
+.qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 10px; background: rgba(15,23,42,0.5); border: 1px solid var(--border); text-decoration: none; color: var(--text-muted); font-size: 0.78rem; font-weight: 500; transition: all 0.15s; text-align: center; }
 .qa-btn:hover { background: rgba(14,165,233,0.1); color: var(--text); border-color: rgba(14,165,233,0.2); }
 .qa-icon { font-size: 1.3rem; }
 .palette-hint { font-size: 0.78rem; }
