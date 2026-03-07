@@ -89,24 +89,31 @@ function toggle(id) {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 9px 12px;
-  background: rgba(255,255,255,0.03);
+  padding: 10px 13px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
+  border-left: 3px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 .ss-item:hover {
-  background: rgba(14,165,233,0.06);
+  background: rgba(14,165,233,0.08);
+  border-color: rgba(14,165,233,0.2);
 }
 .ss-item-checked {
-  border-color: rgba(14,165,233,0.35);
-  background: rgba(14,165,233,0.05);
+  border-color: rgba(14,165,233,0.3);
+  border-left-color: #0ea5e9;
+  background: rgba(14,165,233,0.08);
+  box-shadow: 0 2px 8px rgba(14,165,233,0.1);
 }
 .ss-item input[type="checkbox"] {
   margin-top: 3px;
   flex-shrink: 0;
   cursor: pointer;
+  accent-color: #0ea5e9;
 }
 .ss-info {
   display: flex;
@@ -125,11 +132,26 @@ function toggle(id) {
   line-height: 1.4;
 }
 
-/* Light theme */
-.theme-light .ss-item {
-  background: rgba(0,0,0,0.02);
+/* ── Light theme glassmorphism ── */
+:global(.theme-light) .ss-item {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(71, 85, 105, 0.16);
+  border-left-color: transparent;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-.theme-light .ss-item-checked {
-  background: rgba(14,165,233,0.07);
+:global(.theme-light) .ss-item:hover {
+  background: rgba(14, 165, 233, 0.07);
+  border-color: rgba(14, 165, 233, 0.28);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08);
 }
+:global(.theme-light) .ss-item-checked {
+  background: rgba(2, 132, 199, 0.07);
+  border-color: rgba(2, 132, 199, 0.28);
+  border-left-color: #0284c7;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.12), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+:global(.theme-light) .ss-name { color: #0f172a; }
+:global(.theme-light) .ss-desc { color: #475569; }
 </style>

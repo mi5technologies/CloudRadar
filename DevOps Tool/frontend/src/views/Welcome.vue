@@ -91,9 +91,7 @@ function select(cloud) {
   gap: 20px;
 }
 @media (max-width: 640px) {
-  .cloud-grid {
-    grid-template-columns: 1fr;
-  }
+  .cloud-grid { grid-template-columns: 1fr; }
 }
 .cloud-card {
   display: flex;

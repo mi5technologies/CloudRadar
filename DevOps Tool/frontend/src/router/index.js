@@ -18,6 +18,8 @@ const routes = [
   { path: '/security/notifications', name: 'Notifications', component: () => import('../views/Notifications.vue'), meta: { title: 'Notifications' } },
   { path: '/security/scheduled', name: 'ScheduledScans', component: () => import('../views/ScheduledScans.vue'), meta: { title: 'Scheduled Scans' } },
   { path: '/tests', name: 'Tests', component: () => import('../views/Tests.vue'), meta: { title: 'Tests' } },
+  { path: '/audit/logs', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue'), meta: { title: 'Audit Logs' } },
+  { path: '/scan-history', name: 'ScanHistory', component: () => import('../views/ScanHistory.vue'), meta: { title: 'Scan History' } },
 ]
 
 const router = createRouter({

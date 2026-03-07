@@ -169,7 +169,7 @@ async function start() {
         if (data.status === 'completed' || data.status === 'failed') {
           done.value = true
           if (data.error) finalError.value = data.error
-          if (data.result?.summary) summary.value = data.result.summary
+          if (data.result?.summary) { summary.value = data.result.summary; saveScanHistory(data.result.summary, data.status) }
           if (data.result?.downloads) downloads.value = data.result.downloads || []
           if (pollTimer) clearInterval(pollTimer)
           pollTimer = null
@@ -182,7 +182,7 @@ async function start() {
       else if (ev.type === 'done') {
         done.value = true
         if (ev.error) finalError.value = ev.error
-        if (ev.summary) summary.value = ev.summary
+        if (ev.summary) { summary.value = ev.summary; saveScanHistory(ev.summary, ev.error ? 'failed' : 'completed') }
         if (ev.downloads) downloads.value = ev.downloads || []
       } else if (ev.type === 'close') {
         if (unsubscribe) unsubscribe()
@@ -201,6 +201,26 @@ async function start() {
   } finally {
     loading.value = false
   }
+}
+
+function saveScanHistory(sum, status = 'completed') {
+  try {
+    const history = JSON.parse(localStorage.getItem('cspm_scan_history') || '[]')
+    const entry = {
+      timestamp: new Date().toISOString(),
+      cloud: sum.cloud || selectedCloud.value,
+      region: sum.region || region.value,
+      findings_count: sum.findings_count ?? 0,
+      risk_score: sum.risk_score ?? null,
+      critical: sum.critical ?? 0,
+      high: sum.high ?? 0,
+      medium: sum.medium ?? 0,
+      low: sum.low ?? 0,
+      status,
+    }
+    history.unshift(entry)
+    localStorage.setItem('cspm_scan_history', JSON.stringify(history.slice(0, 100)))
+  } catch (_) {}
 }
 
 function reset() {
