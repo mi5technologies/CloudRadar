@@ -15,7 +15,10 @@
     </div>
 
     <div v-if="summary" class="summary-strip">
-      <span class="strip-item"><strong>{{ (summary.cloud||'').toUpperCase() }}</strong></span>
+      <span class="strip-item cloud-badge" :class="'cloud-badge-' + (summary.cloud || 'aws')">
+        <span v-html="cloudIcon(summary.cloud)"></span>
+        {{ (summary.cloud||'aws').toUpperCase() }}
+      </span>
       <span class="strip-sep">·</span>
       <span class="strip-item">{{ summary.region || '—' }}</span>
       <span class="strip-sep">·</span>
@@ -25,6 +28,22 @@
       <span class="strip-item sev-count-low">🟢 {{ sevCounts.low }} low</span>
       <span class="strip-sep">·</span>
       <span class="strip-item">Risk <strong>{{ summary.risk_score ?? '—' }}</strong></span>
+    </div>
+
+    <!-- Cloud filter tabs (shown when findings from multiple clouds exist) -->
+    <div v-if="cloudTabs.length > 1" class="cloud-tabs">
+      <button
+        v-for="tab in cloudTabs" :key="tab.id"
+        class="cloud-tab" :class="{ active: filterCloud === tab.id, ['ct-' + tab.id]: true }"
+        @click="filterCloud = tab.id"
+      >
+        <span v-html="tab.icon"></span>
+        {{ tab.label }}
+        <span class="tab-count">{{ tab.count }}</span>
+      </button>
+      <button v-if="filterCloud" class="cloud-tab ct-clear" @click="filterCloud = ''">
+        All clouds ×
+      </button>
     </div>
 
     <div class="card" style="margin-bottom: 20px;">
@@ -66,6 +85,7 @@
           <thead>
             <tr>
               <th style="width:90px;">Severity</th>
+              <th style="width:70px;">Cloud</th>
               <th>Rule</th>
               <th>Resource type</th>
               <th>Resource ID</th>
@@ -77,6 +97,12 @@
             <template v-for="(f, i) in filteredFindings" :key="i">
               <tr :class="'sev-row-' + (f.severity || 'medium')" @click="openSlide(f)" style="cursor:pointer;">
                 <td><span class="badge" :class="'badge-' + (f.severity || 'medium')">{{ f.severity || 'medium' }}</span></td>
+                <td>
+                  <span class="cloud-chip" :class="'cc-' + (f.cloud || 'aws')" :title="(f.cloud||'aws').toUpperCase()">
+                    <span v-html="cloudIcon(f.cloud || 'aws')"></span>
+                    {{ (f.cloud || 'aws').toUpperCase() }}
+                  </span>
+                </td>
                 <td><code>{{ f.rule_id || '—' }}</code></td>
                 <td>{{ f.resource_type || '—' }}</td>
                 <td><code class="resource-id">{{ f.resource_id || '—' }}</code></td>
@@ -121,6 +147,10 @@
           <div class="slideover-header">
             <div class="so-title">
               <span class="badge" :class="'badge-' + (slideOver.severity || 'medium')">{{ slideOver.severity || 'medium' }}</span>
+              <span class="cloud-chip" :class="'cc-' + (slideOver.cloud || 'aws')">
+                <span v-html="cloudIcon(slideOver.cloud || 'aws')"></span>
+                {{ (slideOver.cloud || 'aws').toUpperCase() }}
+              </span>
               <h3>{{ slideOver.title || slideOver.rule_id || 'Finding Detail' }}</h3>
             </div>
             <button class="close-btn" @click="slideOver = null">×</button>
@@ -128,10 +158,11 @@
           <div class="slideover-body">
             <!-- Metadata -->
             <div class="so-meta">
+              <div v-if="slideOver.cloud" class="so-meta-item"><span class="so-meta-label">Cloud</span><span>{{ slideOver.cloud.toUpperCase() }}</span></div>
               <div v-if="slideOver.rule_id" class="so-meta-item"><span class="so-meta-label">Rule</span><code>{{ slideOver.rule_id }}</code></div>
               <div v-if="slideOver.resource_type" class="so-meta-item"><span class="so-meta-label">Resource type</span><span>{{ slideOver.resource_type }}</span></div>
               <div v-if="slideOver.resource_id" class="so-meta-item"><span class="so-meta-label">Resource ID</span><code class="so-resource-id">{{ slideOver.resource_id }}</code></div>
-              <div v-if="slideOver.region" class="so-meta-item"><span class="so-meta-label">Region</span><span>{{ slideOver.region }}</span></div>
+              <div v-if="slideOver.region" class="so-meta-item"><span class="so-meta-label">Region / Project</span><span>{{ slideOver.region }}</span></div>
             </div>
 
             <!-- Recommendation section -->
@@ -152,7 +183,7 @@
               </div>
               <a v-if="slideRec.docs" :href="slideRec.docs" target="_blank" rel="noopener" class="docs-link">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                AWS Documentation →
+                {{ cloudLabel(slideOver.cloud) }} Documentation →
               </a>
             </div>
 
@@ -189,12 +220,21 @@ import { ref, computed, watch, onMounted } from 'vue'
 import api from '../api'
 import { getRecommendation } from '../utils/recommendations'
 
-const findings  = ref([])
-const summary   = ref(null)
-const loading   = ref(false)
-const searchQ   = ref('')
-const filterSev = ref('')
+const CLOUD_META = {
+  aws:   { label: 'AWS',          icon: `<svg width="12" height="8" viewBox="0 0 80 48" fill="none"><path d="M22.9 32.2c-4.5 2.4-9.4 3.7-14.5 3.7C3.8 35.9 0 32.1 0 27.3c0-5.3 4.5-9.6 10.7-10.2-.3-1.1-.5-2.3-.5-3.6C10.2 6.1 15.9 1 22.9 1c3.4 0 6.5 1.2 8.9 3.2 2.2-4.3 6.7-7.2 11.7-7.2 4.3 0 8.2 1.9 10.8 5 1.9-.7 3.9-1.1 6-1.1C68 1 75 8 75 16.8c0 1.8-.3 3.5-.8 5.1C77.4 23.5 80 27 80 31.1 80 36.8 75.3 41 69.2 41H22.9z" fill="#FF9900"/></svg>` },
+  gcp:   { label: 'Google Cloud', icon: `<svg width="12" height="12" viewBox="0 0 48 48"><path fill="#4285F4" d="M30.2 17.8H24v4.2h6.9c-.7 3.7-4 6.5-7.9 6.5-4.5 0-8.2-3.7-8.2-8.2s3.7-8.2 8.2-8.2c2.1 0 4 .8 5.5 2.1l3-3C29 8.6 26.7 7.5 24 7.5c-7.5 0-13.5 6-13.5 13.5S16.5 34.5 24 34.5c7.2 0 12.8-5 12.8-13.5 0-.8-.1-1.5-.2-2.2l-6.4-1z"/></svg>` },
+  azure: { label: 'Azure',        icon: `<svg width="12" height="12" viewBox="0 0 48 48"><path fill="#0078D4" d="M27 4L13 28l9 5-7 7h16l7-36z"/><path fill="#50E6FF" d="M27 4L4 34l9-1 7-7-3-5z"/></svg>` },
+}
+function cloudIcon(id) { return CLOUD_META[id]?.icon || CLOUD_META.aws.icon }
+function cloudLabel(id) { return CLOUD_META[id]?.label || 'Cloud' }
+
+const findings   = ref([])
+const summary    = ref(null)
+const loading    = ref(false)
+const searchQ    = ref('')
+const filterSev  = ref('')
 const filterType = ref('')
+const filterCloud = ref('')
 
 const remediateOpen = ref(null)
 const remState = ref({ dry_run: true, region: 'us-east-1', loading: false, result: '', ok: false })
@@ -224,10 +264,24 @@ const resourceTypes = computed(() => {
   return [...new Set(findings.value.map(f => f.resource_type).filter(Boolean))].sort()
 })
 
+// Cloud tabs — only shown if findings from multiple clouds exist
+const cloudTabs = computed(() => {
+  const counts = {}
+  for (const f of findings.value) {
+    const c = (f.cloud || 'aws').toLowerCase()
+    counts[c] = (counts[c] || 0) + 1
+  }
+  return Object.entries(counts).map(([id, count]) => ({
+    id, count, label: CLOUD_META[id]?.label || id.toUpperCase(),
+    icon: CLOUD_META[id]?.icon || '',
+  }))
+})
+
 const filteredFindings = computed(() => {
   let list = findings.value
-  if (filterSev.value)  list = list.filter(f => (f.severity||'').toLowerCase() === filterSev.value)
-  if (filterType.value) list = list.filter(f => f.resource_type === filterType.value)
+  if (filterCloud.value) list = list.filter(f => (f.cloud || 'aws').toLowerCase() === filterCloud.value)
+  if (filterSev.value)   list = list.filter(f => (f.severity||'').toLowerCase() === filterSev.value)
+  if (filterType.value)  list = list.filter(f => f.resource_type === filterType.value)
   if (searchQ.value.trim()) {
     const q = searchQ.value.toLowerCase()
     list = list.filter(f =>
@@ -329,6 +383,35 @@ onMounted(load)
 .sev-count-high     { color: #fb923c; font-weight: 600; }
 .sev-count-medium   { color: #fbbf24; font-weight: 600; }
 .sev-count-low      { color: #86efac; font-weight: 600; }
+
+/* Cloud badge in summary strip */
+.cloud-badge { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; padding: 2px 9px; border-radius: 7px; }
+.cloud-badge-aws   { background: rgba(255,153,0,0.12);  color: #fb923c; }
+.cloud-badge-gcp   { background: rgba(66,133,244,0.12); color: #60a5fa; }
+.cloud-badge-azure { background: rgba(0,120,212,0.12);  color: #93c5fd; }
+
+/* Cloud filter tabs */
+.cloud-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.cloud-tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px;
+  border-radius: 20px; border: 1px solid var(--border); background: rgba(15,23,42,0.5);
+  color: var(--text-muted); font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.14s;
+}
+.cloud-tab:hover { color: var(--text); border-color: rgba(99,102,241,0.35); }
+.ct-aws.active    { background: rgba(255,153,0,0.12);  border-color: rgba(255,153,0,0.35);  color: #fb923c; font-weight: 700; }
+.ct-gcp.active    { background: rgba(66,133,244,0.12); border-color: rgba(66,133,244,0.35); color: #60a5fa; font-weight: 700; }
+.ct-azure.active  { background: rgba(0,120,212,0.12);  border-color: rgba(0,120,212,0.35);  color: #93c5fd; font-weight: 700; }
+.ct-clear { border-color: rgba(99,102,241,0.3); color: #a5b4fc; }
+.tab-count { background: rgba(255,255,255,0.1); padding: 0 6px; border-radius: 20px; font-size: 0.72rem; }
+
+/* Cloud chip in table rows */
+.cloud-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
+  border-radius: 5px; font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+}
+.cc-aws   { background: rgba(255,153,0,0.1);  color: #fb923c; }
+.cc-gcp   { background: rgba(66,133,244,0.1); color: #60a5fa; }
+.cc-azure { background: rgba(0,120,212,0.1);  color: #93c5fd; }
 
 /* Filters */
 .filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

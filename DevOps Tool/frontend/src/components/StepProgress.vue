@@ -53,14 +53,28 @@
 
       <!-- Top recommendations -->
       <div v-if="topRecs.length" class="recs-section">
-        <div class="recs-title">📌 Recommended actions</div>
-        <div v-for="(rec, i) in topRecs" :key="i" class="rec-item">
+        <div class="recs-title">📌 Prioritised actions <span class="recs-source" v-if="hasScanFindings">· ranked by your findings</span></div>
+        <div v-for="(item, i) in topRecs" :key="i" class="rec-item">
           <span class="rec-num">{{ i + 1 }}</span>
           <div class="rec-body">
-            <span class="rec-label">{{ rec.title }}</span>
-            <span class="rec-fix">{{ rec.fix[0] }}</span>
+            <span class="rec-label">{{ item.title }}</span>
+            <span v-if="item.count > 1" class="rec-count-chip">{{ item.count }} resources</span>
+            <span class="rec-fix">{{ (item.recommendation?.fix || item.fix || [])[0] }}</span>
           </div>
-          <span class="rec-sev-badge" :class="'sev-badge-' + rec.severity">{{ rec.severity }}</span>
+          <span class="rec-sev-badge" :class="'sev-badge-' + (item.severity || item.recommendation?.severity)">{{ item.severity || item.recommendation?.severity }}</span>
+        </div>
+      </div>
+
+      <!-- Quick wins -->
+      <div v-if="quickWins.length" class="recs-section">
+        <div class="recs-title">⚡ Quick wins <span class="recs-source">· low effort, high impact</span></div>
+        <div v-for="(item, i) in quickWins" :key="i" class="rec-item rec-item-qw">
+          <span class="rec-num qw-num">{{ i + 1 }}</span>
+          <div class="rec-body">
+            <span class="rec-label">{{ item.title }}</span>
+            <span class="rec-fix">{{ (item.recommendation?.fix || [])[0] || 'See documentation for fix steps.' }}</span>
+          </div>
+          <span class="rec-sev-badge" :class="'sev-badge-' + item.severity">{{ item.severity }}</span>
         </div>
       </div>
 
@@ -75,7 +89,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { getRecommendation, getTopRecsForCloud, SEV_ORDER } from '../utils/recommendations'
+import { getRecommendation, getTopRecsForCloud, SEV_ORDER, RECOMMENDATIONS } from '../utils/recommendations'
+import { getPrioritisedRecs, getQuickWins } from '../utils/remediationStore'
 
 const props = defineProps({
   title:     { type: String,  default: 'Execution' },
@@ -93,6 +108,13 @@ const lowCount      = computed(() => props.summary?.low ?? 0)
 const totalFindings = computed(() => props.summary?.findings_count ?? 0)
 const scanCloud     = computed(() => (props.summary?.cloud || 'aws').toLowerCase())
 
+// Findings from the completed scan (used for prioritised recs)
+const scanFindings = computed(() => {
+  const f = props.summary?.findings || props.summary?.top_findings || []
+  return f.map(fi => ({ ...fi, cloud: fi.cloud || scanCloud.value }))
+})
+const hasScanFindings = computed(() => scanFindings.value.length > 0)
+
 function riskClass(score) {
   const n = typeof score === 'number' ? score : parseFloat(score)
   if (n >= 80) return 'risk-critical'
@@ -101,21 +123,25 @@ function riskClass(score) {
   return 'risk-low'
 }
 
-// Build top 3 recommendations — cloud-aware
+// Build top 3 recommendations — prioritised by actual findings when available
 const topRecs = computed(() => {
-  const findings = props.summary?.top_findings || props.summary?.findings || []
-  if (findings.length) {
-    const sorted = [...findings].sort((a, b) =>
-      (SEV_ORDER[(a.severity||'medium').toLowerCase()] ?? 4) - (SEV_ORDER[(b.severity||'medium').toLowerCase()] ?? 4)
-    )
-    return sorted.slice(0, 3).map(f => getRecommendation({ ...f, cloud: scanCloud.value })).filter(Boolean)
+  if (hasScanFindings.value) {
+    return getPrioritisedRecs(scanFindings.value, RECOMMENDATIONS, scanCloud.value, 3)
   }
+  // Fallback: static lookup
   return getTopRecsForCloud(scanCloud.value, {
     critical: criticalCount.value,
     high:     highCount.value,
     medium:   mediumCount.value,
-  }, 3)
+  }, 3).map(rec => ({ title: rec?.title, severity: rec?.severity, recommendation: rec, count: 0 }))
 })
+
+// Quick wins from this scan
+const quickWins = computed(() =>
+  hasScanFindings.value
+    ? getQuickWins(scanFindings.value, RECOMMENDATIONS, scanCloud.value, 3)
+    : []
+)
 </script>
 
 <style scoped>
@@ -173,4 +199,8 @@ const topRecs = computed(() => {
 .sev-badge-low      { background: rgba(34,197,94,0.15);  color: #86efac; }
 
 .summary-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.recs-source { font-weight: 400; font-size: 0.72rem; color: var(--text-muted); margin-left: 4px; text-transform: none; letter-spacing: 0; }
+.rec-count-chip { display: inline-block; padding: 0px 6px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; background: rgba(14,165,233,0.12); color: var(--accent); margin: 0 4px 2px; vertical-align: middle; }
+.rec-item-qw { background: rgba(34,197,94,0.05); border-color: rgba(34,197,94,0.15); }
+.qw-num { background: rgba(34,197,94,0.15) !important; color: #86efac !important; }
 </style>

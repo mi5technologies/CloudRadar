@@ -16,6 +16,7 @@ from cspm.scanners import (
     cloudwatch_scanner,
     secretsmanager_scanner,
     sns_scanner,
+    cloudfront_scanner,
 )
 
 
@@ -134,5 +135,9 @@ def collect(
         report("Scanning SNS topics", "running")
         result["sns"] = sns_scanner.scan_sns(raw_assets["sns"])
         report("Scanning SNS topics", "success")
+    if raw_assets.get("cloudfront") and _include("cloudfront"):
+        report("Scanning CloudFront distributions", "running")
+        result["cloudfront"] = cloudfront_scanner.scan_cloudfront(raw_assets["cloudfront"])
+        report("Scanning CloudFront distributions", "success")
 
     return result

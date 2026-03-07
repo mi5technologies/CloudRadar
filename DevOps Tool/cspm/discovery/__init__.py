@@ -18,6 +18,7 @@ from cspm.discovery import guardduty_discovery
 from cspm.discovery import cloudwatch_discovery
 from cspm.discovery import secretsmanager_discovery
 from cspm.discovery import sns_discovery
+from cspm.discovery import cloudfront_discovery
 
 __all__ = [
     "ec2_discovery", "s3_discovery", "rds_discovery", "lambda_discovery",
@@ -25,5 +26,5 @@ __all__ = [
     "cloudtrail_discovery", "vpc_discovery", "eks_discovery", "ecs_discovery",
     "kms_discovery", "apigateway_discovery", "sqs_discovery", "dynamodb_discovery",
     "guardduty_discovery", "cloudwatch_discovery",
-    "secretsmanager_discovery", "sns_discovery",
+    "secretsmanager_discovery", "sns_discovery", "cloudfront_discovery",
 ]

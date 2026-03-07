@@ -1,775 +1,875 @@
 <template>
-  <div class="doc-page">
-    <div class="doc-masthead">
-      <h1>CloudRadar Documentation</h1>
-      <p class="doc-intro">
-        Complete reference for CloudRadar — from first-time setup to every scan, report, and new feature.
-        Use the table of contents to jump to any section.
-      </p>
-      <div class="version-badge">v2.0 — Updated with all latest features</div>
+  <div class="docs-root">
+    <!-- Floating back to contents button -->
+    <transition name="fab-fade">
+      <button v-if="showFab" class="fab-contents" @click="scrollToTop" title="Back to contents">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        Contents
+      </button>
+    </transition>
+
+    <div class="docs-layout">
+      <!-- Sidebar TOC -->
+      <aside class="docs-toc">
+        <div class="toc-title">Contents</div>
+        <nav>
+          <a v-for="item in toc" :key="item.id" :href="'#' + item.id"
+            class="toc-link" :class="{ 'toc-sub': item.sub }">
+            {{ item.label }}
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main content -->
+      <main class="docs-content">
+        <!-- ───── Overview ───── -->
+        <section id="overview">
+          <h1>CloudRadar CSPM — Documentation</h1>
+          <p class="lead">
+            CloudRadar is a multi-cloud Cloud Security Posture Management (CSPM) platform that
+            continuously scans AWS, Google Cloud, and Azure environments for misconfigurations,
+            vulnerabilities, compliance gaps, and attack paths — and provides actionable remediation
+            guidance for every finding.
+          </p>
+          <div class="info-box">
+            <strong>Quick start:</strong> Go to <strong>Welcome</strong> → select your cloud → configure credentials → run a <strong>Security Scan</strong>.
+            Press <kbd>Ctrl+K</kbd> (or <kbd>⌘K</kbd>) anywhere to open the command palette for fast navigation.
+          </div>
+        </section>
+
+        <!-- ───── Getting Started ───── -->
+        <section id="getting-started">
+          <h2>Getting started</h2>
+
+          <h3 id="cloud-setup">1. Cloud credentials setup</h3>
+          <p>Before running any scan, configure credentials for the cloud you want to audit:</p>
+
+          <div class="tabs-wrap">
+            <div class="tab-block">
+              <div class="tab-head aws">AWS</div>
+              <div class="tab-body">
+                <ol>
+                  <li>Create an IAM user or role with the <code>SecurityAudit</code> + <code>ReadOnlyAccess</code> managed policies.</li>
+                  <li>Generate an Access Key + Secret Key for the IAM user.</li>
+                  <li>Run <code>aws configure</code> on the server running CloudRadar, or set the
+                    <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> environment variables.</li>
+                  <li>Optional: add the <code>arn:aws:iam::aws:policy/AmazonGuardDutyReadOnlyAccess</code> policy for GuardDuty checks.</li>
+                </ol>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head gcp">Google Cloud</div>
+              <div class="tab-body">
+                <ol>
+                  <li>Create a Service Account in your GCP project with the following roles:
+                    <code>Viewer</code>, <code>Security Reviewer</code>, <code>Cloud Asset Viewer</code>.</li>
+                  <li>Download the JSON key file for the service account.</li>
+                  <li>Set the environment variable: <code>GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json</code>.</li>
+                  <li>Pass your <strong>Project ID</strong> when starting a scan.</li>
+                </ol>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head azure">Azure</div>
+              <div class="tab-body">
+                <ol>
+                  <li>Register an App in Azure AD (App registrations → New registration).</li>
+                  <li>Assign the app the <strong>Reader</strong> + <strong>Security Reader</strong> roles at the subscription scope.</li>
+                  <li>Create a client secret and set the environment variables:
+                    <code>AZURE_TENANT_ID</code>, <code>AZURE_CLIENT_ID</code>, <code>AZURE_CLIENT_SECRET</code>.</li>
+                  <li>Pass your <strong>Subscription ID</strong> when starting a scan.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <h3 id="first-scan">2. Running your first scan</h3>
+          <ol>
+            <li>Click <strong>Security</strong> → <strong>Security Scan</strong> in the sidebar.</li>
+            <li>Select the cloud provider (AWS, Google Cloud, or Azure).</li>
+            <li>Enter the Region / Project ID / Subscription ID as appropriate.</li>
+            <li>Select the services you want to scan — or leave all checked for a full scan.</li>
+            <li>Click <strong>Run security scan</strong> and watch real-time progress steps.</li>
+            <li>After the scan completes, review the structured <strong>Post-scan summary card</strong>.</li>
+            <li>Go to <strong>Findings</strong> for detailed, filterable results with per-finding remediation.</li>
+          </ol>
+        </section>
+
+        <!-- ───── Dashboard ───── -->
+        <section id="dashboard">
+          <h2>Dashboard</h2>
+          <p>
+            The Dashboard provides a high-level security posture overview across all three clouds.
+            It is accessible at any time from the sidebar.
+          </p>
+          <h3 id="dashboard-clouds">Multi-cloud tabs</h3>
+          <p>
+            Three cloud tabs appear at the top of the Dashboard (AWS, Google Cloud, Azure). Click any tab
+            to switch the entire Dashboard — all KPI cards, charts, and recommendations update to show
+            data only for that cloud. The selected cloud is persisted in <code>localStorage</code> and
+            remembered between sessions.
+          </p>
+          <h3 id="dashboard-charts">Charts</h3>
+          <ul>
+            <li><strong>Findings by severity</strong> — Donut chart showing the Critical / High / Medium / Low split for the most recent scan of the selected cloud.</li>
+            <li><strong>Risk score over time</strong> — Line chart showing risk score trend across the last 10 scans of the selected cloud.</li>
+            <li><strong>Findings per scan</strong> — Bar chart showing total findings per scan over time for the selected cloud.</li>
+          </ul>
+          <p>Charts are powered by Chart.js and update automatically when the cloud tab is switched.</p>
+          <h3 id="dashboard-recs">Top 5 Recommendations panel</h3>
+          <p>
+            Below the charts, the Dashboard shows the top 5 prioritised security recommendations for
+            the selected cloud, pulled from the <code>recommendations.js</code> lookup table.
+            Each card shows the rule title, cloud badge, severity badge, and a one-line "why it matters" summary.
+          </p>
+          <h3 id="dashboard-kpis">KPI cards</h3>
+          <p>
+            Four KPI cards show: total findings, critical + high findings, compliance score, and risk score.
+            A "No scans yet" empty state is shown if no scan history exists for the selected cloud.
+          </p>
+        </section>
+
+        <!-- ───── Security Scan ───── -->
+        <section id="security-scan">
+          <h2>Security Scan</h2>
+          <p>
+            The Security Scan page performs a comprehensive, service-by-service audit of your cloud environment.
+            Every service list is cloud-specific — the correct service names are shown for each cloud.
+          </p>
+          <h3 id="scan-aws">AWS services scanned (30)</h3>
+          <div class="service-grid">
+            <span class="svc-chip" v-for="s in awsServices" :key="s">{{ s }}</span>
+          </div>
+          <h3 id="scan-gcp">Google Cloud services scanned (23)</h3>
+          <div class="service-grid">
+            <span class="svc-chip gcp" v-for="s in gcpServices" :key="s">{{ s }}</span>
+          </div>
+          <h3 id="scan-azure">Azure services scanned (23)</h3>
+          <div class="service-grid">
+            <span class="svc-chip azure" v-for="s in azureServices" :key="s">{{ s }}</span>
+          </div>
+          <h3 id="scan-options">Scan options</h3>
+          <ul>
+            <li><strong>Cloud provider</strong> — switch between AWS, Google Cloud, and Azure. The service list updates automatically.</li>
+            <li><strong>Region / Project ID / Subscription ID</strong> — the label and input change based on the selected cloud.</li>
+            <li><strong>Save snapshot</strong> — saves a JSON snapshot of findings to disk for later comparison.</li>
+            <li><strong>Service selection</strong> — deselect individual services to skip them. The "Run" button shows how many services are selected.</li>
+          </ul>
+          <h3 id="scan-progress">Real-time progress</h3>
+          <p>
+            Each scan step is streamed in real time via Server-Sent Events (SSE). Steps show a running,
+            success, or failed status. After completion, the post-scan summary card is displayed.
+          </p>
+          <h3 id="scan-summary">Post-scan summary card</h3>
+          <p>The summary card shows:</p>
+          <ul>
+            <li>Severity pill counts (Critical, High, Medium, Low)</li>
+            <li>Overall risk score (0–100)</li>
+            <li>Cloud, region/project, and total findings count</li>
+            <li>Top 3 cloud-specific recommendations based on what was found</li>
+            <li>Download links for JSON and CSV reports</li>
+          </ul>
+        </section>
+
+        <!-- ───── Findings ───── -->
+        <section id="findings">
+          <h2>Findings</h2>
+          <p>
+            The Findings page lists all security findings from the most recent scan with powerful filtering
+            and a slide-over detail panel.
+          </p>
+          <h3 id="findings-filter">Filters</h3>
+          <ul>
+            <li><strong>Search</strong> — free-text search across rule ID, resource ID, resource type, and title.</li>
+            <li><strong>Severity</strong> — filter by Critical, High, Medium, or Low.</li>
+            <li><strong>Resource type</strong> — filter by the affected resource type (e.g. ec2, gcp.firewall, azure.nsg).</li>
+          </ul>
+          <h3 id="findings-slideover">Slide-over detail panel</h3>
+          <p>Click any finding row to open the slide-over panel, which shows:</p>
+          <ul>
+            <li>Finding title, severity badge, cloud badge, rule ID, resource ID, resource type</li>
+            <li><strong>What is this?</strong> — plain-English explanation of the issue</li>
+            <li><strong>Why it matters</strong> — business and security impact</li>
+            <li><strong>How to fix it</strong> — numbered remediation steps</li>
+            <li><strong>Documentation link</strong> — direct link to the cloud provider's official docs</li>
+            <li><strong>Raw JSON</strong> — collapsible raw finding data</li>
+            <li><strong>Auto-remediation</strong> — inline remediation script (where available)</li>
+          </ul>
+          <h3 id="findings-export">Export CSV</h3>
+          <p>Click <strong>Export CSV</strong> to download the currently filtered findings as a CSV file.</p>
+        </section>
+
+        <!-- ───── Vulnerabilities ───── -->
+        <section id="vulnerabilities">
+          <h2>Vulnerabilities</h2>
+          <p>
+            The Vulnerabilities page scans container registries, virtual machines, and native security
+            tools for known CVEs and vulnerability assessment findings.
+            The check list is fully cloud-specific:
+          </p>
+          <div class="tabs-wrap">
+            <div class="tab-block">
+              <div class="tab-head aws">AWS</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>ECR Image Scan</strong> — critical/high CVEs in container images via AWS Inspector / ECR scanning.</li>
+                  <li><strong>AMI Vulnerability Check</strong> — deprecated AMIs, public AMIs, known-vulnerable image IDs.</li>
+                  <li><strong>Amazon Inspector</strong> — Inspector v2 enablement check, EC2 + Lambda + container findings.</li>
+                  <li><strong>SSM Patch Compliance</strong> — patch compliance status for SSM-managed EC2 instances.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head gcp">Google Cloud</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Artifact Registry Image Scan</strong> — CVEs via Container Analysis.</li>
+                  <li><strong>Container Registry CVE Scan</strong> — legacy gcr.io registry vulnerability scan.</li>
+                  <li><strong>VM Manager OS Vulnerability Report</strong> — OS-level CVEs on Compute Engine VMs.</li>
+                  <li><strong>Security Command Center Findings</strong> — MEDIUM+ vulnerability findings from SCC.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head azure">Azure</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Container Registry Image Scan</strong> — CVEs via Defender for Containers.</li>
+                  <li><strong>AKS Cluster Node Vulnerabilities</strong> — node OS patches and container CVEs.</li>
+                  <li><strong>VM Vulnerability Assessment</strong> — Defender for Cloud VM findings.</li>
+                  <li><strong>Defender for Cloud Alerts</strong> — active security alerts at subscription level.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───── Pentest ───── -->
+        <section id="pentest">
+          <h2>Pentest</h2>
+          <p>
+            The Pentest page simulates real-world attack scenarios using your cloud environment's own
+            configuration. All check names and descriptions match the selected cloud's terminology.
+          </p>
+          <div class="tabs-wrap">
+            <div class="tab-block">
+              <div class="tab-head aws">AWS</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Exposed Services</strong> — Security Groups open on SSH, RDP, database ports to 0.0.0.0/0.</li>
+                  <li><strong>Secrets Scan</strong> — hardcoded secrets in Lambda, CodeBuild, EC2 user-data, and local repos.</li>
+                  <li><strong>Exploit Mapping</strong> — attack chains: public S3 + IAM wildcard → data exfiltration, SSRF → credential theft.</li>
+                  <li><strong>IAM Privilege Escalation</strong> — iam:PassRole, lambda:CreateFunction, sts:AssumeRole on * vectors.</li>
+                  <li><strong>Lateral Movement Paths</strong> — shared VPCs, overly permissive egress, cross-account trusts, SSM chains.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head gcp">Google Cloud</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Exposed Services</strong> — VPC Firewall Rules with SSH/RDP/DB ports open from 0.0.0.0/0.</li>
+                  <li><strong>Secrets Scan</strong> — Cloud Functions/Run env vars, Compute metadata, local repos.</li>
+                  <li><strong>Exploit Mapping</strong> — public GCS + service account key, public Cloud SQL, GCE metadata SSRF.</li>
+                  <li><strong>IAM Privilege Escalation</strong> — iam.serviceAccounts.actAs, serviceusage.services.enable vectors.</li>
+                  <li><strong>GKE Attack Paths</strong> — public API endpoint, legacy ABAC, insecure Workload Identity, privileged pods.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head azure">Azure</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Exposed Services</strong> — NSG rules with SSH/RDP/DB ports open from Internet on VMs and AKS nodes.</li>
+                  <li><strong>Secrets Scan</strong> — Azure Functions app settings, VM extensions, App Service env vars, local repos.</li>
+                  <li><strong>Exploit Mapping</strong> — public blob + Managed Identity, public Azure SQL, Azure AD token via IMDS SSRF.</li>
+                  <li><strong>RBAC Privilege Escalation</strong> — Owner/Contributor at subscription scope, no PIM, roleAssignments/write.</li>
+                  <li><strong>AKS Attack Paths</strong> — public API, no Azure AD RBAC, pod identity misconfig, no network policy.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───── Security Checks Reference ───── -->
+        <section id="security-checks">
+          <h2>Security checks reference</h2>
+          <p>
+            All checks map to entries in <code>recommendations.js</code> which provides detailed
+            remediation guidance for each rule. Below is the full reference grouped by cloud and service.
+          </p>
+
+          <h3 id="checks-aws">AWS checks</h3>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Rule ID</span><span>Title</span><span>Severity</span>
+            </div>
+            <div class="checks-row" v-for="r in awsChecks" :key="r.id">
+              <code>{{ r.id }}</code><span>{{ r.title }}</span>
+              <span class="sev-badge" :class="r.sev">{{ r.sev }}</span>
+            </div>
+          </div>
+
+          <h3 id="checks-gcp">Google Cloud checks</h3>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Rule ID</span><span>Title</span><span>Severity</span>
+            </div>
+            <div class="checks-row" v-for="r in gcpChecks" :key="r.id">
+              <code>{{ r.id }}</code><span>{{ r.title }}</span>
+              <span class="sev-badge" :class="r.sev">{{ r.sev }}</span>
+            </div>
+          </div>
+
+          <h3 id="checks-azure">Azure checks</h3>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Rule ID</span><span>Title</span><span>Severity</span>
+            </div>
+            <div class="checks-row" v-for="r in azureChecks" :key="r.id">
+              <code>{{ r.id }}</code><span>{{ r.title }}</span>
+              <span class="sev-badge" :class="r.sev">{{ r.sev }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ───── Compliance ───── -->
+        <section id="compliance">
+          <h2>Compliance</h2>
+          <p>
+            The Compliance page runs framework-specific checks (CIS Benchmarks, NIST 800-53, ISO 27001, SOC 2, GDPR, PCI-DSS) and optionally produces gap analysis.
+          </p>
+          <h3 id="compliance-gap">Gap analysis (JSON + Suggestions)</h3>
+          <p>
+            Select <strong>JSON + Suggestions</strong> as the output format. After the check completes:
+          </p>
+          <ul>
+            <li>A compliance summary strip shows Pass / Fail counts and overall compliance %.</li>
+            <li>A <strong>Failed controls — Gap analysis</strong> section lists each failed control with a specific "What to do" recommendation, fix steps, and a docs link.</li>
+            <li>A collapsible <strong>Passed controls</strong> section shows what is already compliant.</li>
+            <li>A collapsible <strong>Raw JSON response</strong> section is available for integration with other tools.</li>
+          </ul>
+        </section>
+
+        <!-- ───── Attack Paths ───── -->
+        <section id="attack-paths">
+          <h2>Attack Paths</h2>
+          <p>
+            The Attack Paths page visualises chains of weaknesses that could be exploited together for
+            maximum impact. Each path shows the entry point, traversal steps, and blast radius.
+          </p>
+          <p>Example paths that are automatically detected:</p>
+          <ul>
+            <li><strong>AWS:</strong> Public EC2 with SSRF vulnerability → IMDSv1 enabled → IAM role credentials stolen → S3 buckets exfiltrated.</li>
+            <li><strong>GCP:</strong> Public Cloud Function with wildcard service account → Google Cloud Storage bucket read → BigQuery dataset queried.</li>
+            <li><strong>Azure:</strong> Public blob container with SAS token → Storage account key exposed → subscription-wide data access.</li>
+          </ul>
+        </section>
+
+        <!-- ───── Governance ───── -->
+        <section id="governance">
+          <h2>Governance</h2>
+          <p>
+            The Governance page runs policy checks for organisational standards such as tagging compliance,
+            service enablement, and cost governance best practices. Policy checks are defined in YAML rule files.
+          </p>
+        </section>
+
+        <!-- ───── Scan History ───── -->
+        <section id="scan-history">
+          <h2>Scan History</h2>
+          <p>
+            Every time a Security Scan completes, the result is automatically saved to
+            <code>localStorage</code> (up to 100 entries). Access scan history from <strong>Audit → Scan History</strong>.
+          </p>
+          <ul>
+            <li>The table shows: date, cloud, region/project, findings count, risk score, severity breakdown, and status.</li>
+            <li>Click any row to open a slide-over with a severity bar chart and full details.</li>
+            <li>Use <strong>Clear history</strong> to remove all saved entries (requires confirmation).</li>
+          </ul>
+        </section>
+
+        <!-- ───── Notifications ───── -->
+        <section id="notifications">
+          <h2>Notifications</h2>
+          <p>
+            The Notifications page shows scan completion alerts, finding threshold breaches, and system messages.
+            The bell icon in the sidebar header also shows an unread badge when new notifications arrive.
+          </p>
+        </section>
+
+        <!-- ───── Scheduled Scans ───── -->
+        <section id="scheduled-scans">
+          <h2>Scheduled Scans</h2>
+          <p>
+            Create cron-based scan schedules on the Scheduled Scans page. Each schedule specifies a cloud provider,
+            region/project, service selection, and cron expression. The scheduler runs scans in the background
+            and stores results in scan history automatically.
+          </p>
+        </section>
+
+        <!-- ───── UI Features ───── -->
+        <section id="ui-features">
+          <h2>UI features</h2>
+
+          <h3 id="command-palette">Command palette (Ctrl+K)</h3>
+          <p>
+            Press <kbd>Ctrl+K</kbd> (Windows/Linux) or <kbd>⌘K</kbd> (Mac) anywhere in the app to open the
+            global command palette. Type to search all pages and features by name. Use <kbd>↑</kbd> / <kbd>↓</kbd>
+            to navigate and <kbd>Enter</kbd> to jump to the selected page.
+          </p>
+
+          <h3 id="sidebar">Sidebar</h3>
+          <ul>
+            <li><strong>Collapse/expand</strong> — click the ‹ / › button to collapse the sidebar to icon-only mode. State is persisted.</li>
+            <li><strong>Navigation groups</strong> — click any group header (Security, Audit, etc.) to expand or collapse it. State is persisted.</li>
+            <li><strong>Brand logo</strong> — clicking the CloudRadar logo navigates to the Welcome (cloud selection) page.</li>
+            <li><strong>User panel</strong> — click the avatar to see the logged-in user name and access the audit log.</li>
+          </ul>
+
+          <h3 id="theme">Dark / Light mode</h3>
+          <p>
+            Click the theme toggle button at the top of the sidebar to switch between dark and light mode.
+            The preference is stored in <code>localStorage</code> and applied immediately.
+          </p>
+
+          <h3 id="toast">Toast notifications</h3>
+          <p>
+            Transient toast messages appear in the top-right corner for key events (scan complete, error, etc.).
+            Toasts auto-dismiss after 4 seconds. Four variants are available: success (green), error (red),
+            warning (amber), and info (blue).
+          </p>
+
+          <h3 id="mobile">Mobile support</h3>
+          <p>
+            On small screens (below 768 px), the sidebar hides and a hamburger menu button (☰) appears
+            in the top-left. Tap to open the sidebar as a full-height overlay. Tap the backdrop to close it.
+          </p>
+        </section>
+
+        <!-- ───── Recommendations Engine ───── -->
+        <section id="recommendations-engine">
+          <h2>Recommendations engine</h2>
+          <p>
+            All per-finding recommendations come from <code>src/utils/recommendations.js</code> — a
+            centralised lookup table with over <strong>80 rules</strong> covering AWS, Google Cloud, and Azure.
+            Each rule includes:
+          </p>
+          <ul>
+            <li><strong>cloud</strong> — the cloud provider (aws / gcp / azure)</li>
+            <li><strong>title</strong> — short title of the issue</li>
+            <li><strong>what</strong> — plain-English explanation of what the issue is</li>
+            <li><strong>why</strong> — security and business impact</li>
+            <li><strong>fix</strong> — ordered list of specific remediation steps</li>
+            <li><strong>docs</strong> — direct link to official documentation</li>
+            <li><strong>severity</strong> — critical / high / medium / low</li>
+          </ul>
+          <p>
+            The engine matches by: (1) exact <code>rule_id</code>, (2) <code>resource_type</code> prefix,
+            (3) cloud-prefix wildcard, (4) generic cloud-specific fallback. This means recommendations are
+            shown even for custom or unknown rule IDs.
+          </p>
+          <p>
+            The <code>TOP_RECS_BY_CLOUD</code> export provides prioritised rule keys for the Dashboard
+            recommendations panel, organised by cloud and severity tier.
+          </p>
+        </section>
+
+        <!-- ───── API / Backend ───── -->
+        <section id="api">
+          <h2>Backend API</h2>
+          <p>The Python backend exposes a REST API consumed by the Vue.js frontend:</p>
+          <div class="api-table">
+            <div class="api-row header"><span>Method</span><span>Path</span><span>Description</span></div>
+            <div class="api-row" v-for="ep in apiEndpoints" :key="ep.path">
+              <span class="method-badge" :class="ep.method.toLowerCase()">{{ ep.method }}</span>
+              <code>{{ ep.path }}</code>
+              <span>{{ ep.desc }}</span>
+            </div>
+          </div>
+          <h3 id="api-scan-flow">Scan job flow</h3>
+          <ol>
+            <li><code>POST /api/scan</code> → returns <code>{ job_id }</code></li>
+            <li>Frontend subscribes to <code>GET /api/scan/&lt;job_id&gt;/stream</code> (SSE) for real-time step events.</li>
+            <li>As fallback, frontend polls <code>GET /api/scan/&lt;job_id&gt;</code> every 1.5 seconds.</li>
+            <li>On completion, the scan result includes <code>summary</code> and <code>downloads</code>.</li>
+          </ol>
+        </section>
+
+        <!-- ───── Changelog ───── -->
+        <section id="changelog">
+          <h2>Changelog</h2>
+          <div class="changelog-entry">
+            <div class="cl-version">v2.3</div>
+            <ul>
+              <li>Cloud-aware service lists on Security Scan (AWS 30, GCP 23, Azure 23 services)</li>
+              <li>Cloud-aware vulnerability checks on Vulnerabilities page (AWS / GCP / Azure)</li>
+              <li>Cloud-aware pentest checks on Pentest page with correct cloud terminology</li>
+              <li>Added 30+ new security checks: Cognito, AWS Config, Backup, Redshift, ElastiCache, OpenSearch, Route 53, Secrets Manager, CodeBuild, CloudFormation, BigQuery, Cloud DNS, Secret Manager, Cloud Run, App Service, Redis Cache, Log Analytics, Cosmos DB, Service Bus, ACR</li>
+              <li>Expanded TOP_RECS_BY_CLOUD with new rules for all three clouds</li>
+              <li>Updated documentation to cover all new features</li>
+            </ul>
+          </div>
+          <div class="changelog-entry">
+            <div class="cl-version">v2.2</div>
+            <ul>
+              <li>Multi-cloud Dashboard with Chart.js charts (donut, line, bar)</li>
+              <li>Dashboard cloud tabs for AWS, Google Cloud, Azure</li>
+              <li>Top 5 recommendations panel on Dashboard (per-cloud)</li>
+              <li>Documentation fully updated for all features</li>
+            </ul>
+          </div>
+          <div class="changelog-entry">
+            <div class="cl-version">v2.1</div>
+            <ul>
+              <li>Scan History page with slide-over details and severity bar chart</li>
+              <li>Findings detail slide-over panel with per-finding recommendations</li>
+              <li>Global Ctrl+K command palette</li>
+              <li>Toast notification system</li>
+              <li>Post-scan structured summary card</li>
+              <li>Compliance gap analysis (JSON + Suggestions mode)</li>
+              <li>Mobile sidebar hamburger menu</li>
+              <li>Per-finding recommendation engine (80+ rules for AWS / GCP / Azure)</li>
+            </ul>
+          </div>
+          <div class="changelog-entry">
+            <div class="cl-version">v2.0</div>
+            <ul>
+              <li>Persistent Dashboard tab in sidebar navigation</li>
+              <li>Collapsible/expandable sidebar navigation groups</li>
+              <li>Sidebar collapse/expand to icon-only mode</li>
+              <li>User login details, avatar, and audit log</li>
+              <li>Brand logo navigates to Welcome (cloud selection) page</li>
+              <li>Glassmorphism applied to service cards</li>
+              <li>Dark / light mode theme toggle</li>
+            </ul>
+          </div>
+        </section>
+      </main>
     </div>
-
-    <!-- TOC -->
-    <nav class="doc-toc">
-      <div class="toc-group">
-        <span class="toc-group-label">Getting started</span>
-        <a href="#getting-started">Overview</a>
-        <a href="#cloud-selection">Cloud selection</a>
-        <a href="#setup">Credentials setup</a>
-      </div>
-      <div class="toc-group">
-        <span class="toc-group-label">New features</span>
-        <a href="#dashboard">Dashboard &amp; charts</a>
-        <a href="#command-palette">Command palette (Ctrl+K)</a>
-        <a href="#findings-slideover">Findings slide-over panel</a>
-        <a href="#recommendations">Per-finding recommendations</a>
-        <a href="#scan-history">Scan history</a>
-        <a href="#post-scan-summary">Post-scan summary card</a>
-        <a href="#compliance-gaps">Compliance gap analysis</a>
-        <a href="#toast">Toast notifications</a>
-        <a href="#sidebar-features">Sidebar features</a>
-        <a href="#mobile">Mobile support</a>
-      </div>
-      <div class="toc-group">
-        <span class="toc-group-label">Scans &amp; reports</span>
-        <a href="#security">Security scan</a>
-        <a href="#vulnerabilities">Vulnerabilities</a>
-        <a href="#audit">Audit</a>
-        <a href="#compliance">Compliance</a>
-        <a href="#governance">Governance</a>
-        <a href="#pentest">Pentest</a>
-        <a href="#tests">Tests</a>
-        <a href="#hosting">Running CloudRadar</a>
-      </div>
-    </nav>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- GETTING STARTED -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="getting-started">
-      <h2>Overview</h2>
-      <p>
-        <strong>CloudRadar</strong> is a multi-cloud Security Posture Management (CSPM) platform. It discovers
-        resources in <strong>AWS, Google Cloud, and Azure</strong>; evaluates security rules; checks compliance
-        against CIS / SOC 2 / HIPAA / PCI DSS / ISO 27001; and produces findings, charts, recommendations,
-        and pentest output — all from a single browser UI.
-      </p>
-      <div class="tip-box">
-        <span class="tip-icon">💡</span>
-        <span>Click the <strong>CloudRadar logo</strong> in the top-left of the sidebar at any time to return to the cloud-selection screen.</span>
-      </div>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feat-emoji">📊</span>
-          <strong>Dashboard with charts</strong>
-          <span>Real-time risk score, severity donut chart, trend line, and scan history bar chart — per cloud provider.</span>
-        </div>
-        <div class="feature-card">
-          <span class="feat-emoji">⌨️</span>
-          <strong>Command palette</strong>
-          <span>Press Ctrl+K anywhere to instantly navigate to any page or action.</span>
-        </div>
-        <div class="feature-card">
-          <span class="feat-emoji">📋</span>
-          <strong>Findings slide-over</strong>
-          <span>Click any finding for a detailed panel with what/why/how-to-fix and AWS docs link.</span>
-        </div>
-        <div class="feature-card">
-          <span class="feat-emoji">📅</span>
-          <strong>Scan history</strong>
-          <span>Every completed scan is saved automatically — browse, filter and compare past runs.</span>
-        </div>
-        <div class="feature-card">
-          <span class="feat-emoji">✅</span>
-          <strong>Compliance gap analysis</strong>
-          <span>Failed compliance controls now include specific remediation steps, not just a pass/fail status.</span>
-        </div>
-        <div class="feature-card">
-          <span class="feat-emoji">📱</span>
-          <strong>Mobile support</strong>
-          <span>Hamburger menu and responsive layout work on phones and tablets.</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- CLOUD SELECTION -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="cloud-selection">
-      <h2>Cloud selection</h2>
-      <p>
-        The first screen shows three cloud provider cards: <strong>AWS</strong>, <strong>Google Cloud</strong>,
-        and <strong>Azure</strong>. Click the one that matches your environment to be taken to the Setup page.
-        You can switch cloud provider at any time from the sidebar Setup link.
-      </p>
-      <div class="tip-box">
-        <span class="tip-icon">ℹ️</span>
-        <span>CloudRadar stores your selected cloud in browser storage so the Dashboard will remember it on your next visit.</span>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- SETUP -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="setup">
-      <h2>Setup &amp; credentials</h2>
-      <p>Credentials are stored in <code>config.yaml</code> in the project root. Restrict file permissions and never commit this file to version control.</p>
-      <table class="doc-table">
-        <thead><tr><th>Cloud</th><th>Required fields</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>AWS</strong></td>
-            <td>Region, Access Key ID, Secret Access Key</td>
-            <td>Session Token optional (for temporary credentials). Prefer IAM roles or AWS profiles over long-lived keys.</td>
-          </tr>
-          <tr>
-            <td><strong>GCP</strong></td>
-            <td>Project ID</td>
-            <td>Service account JSON path optional — leave blank to use <code>gcloud auth application-default login</code>.</td>
-          </tr>
-          <tr>
-            <td><strong>Azure</strong></td>
-            <td>Subscription ID, Tenant ID, Client ID, Client secret</td>
-            <td>Create a service principal with Reader + Security Reader roles on the subscription.</td>
-          </tr>
-        </tbody>
-      </table>
-      <p>Click <strong>Save and continue</strong> to persist credentials or <strong>Setup later</strong> to skip and use environment variables.</p>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- DASHBOARD (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="dashboard">
-      <h2>🆕 Dashboard with charts &amp; cloud tabs</h2>
-      <p>
-        The Dashboard has been completely redesigned. It now shows live data per cloud provider and
-        includes interactive Chart.js charts.
-      </p>
-
-      <h3>Cloud tabs (AWS / Google Cloud / Azure)</h3>
-      <p>
-        Three tabs sit at the top of the Dashboard — one for each cloud provider. Clicking a tab
-        switches <em>all</em> data on the page (KPI cards, charts, and recommendations) to that
-        cloud's scan history. The tab badge shows how many scans have been recorded for that provider.
-      </p>
-
-      <h3>KPI cards</h3>
-      <table class="doc-table">
-        <thead><tr><th>Card</th><th>What it shows</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Last scan</strong></td><td>How long ago the most recent scan for the selected cloud ran, with cloud name and region.</td></tr>
-          <tr><td><strong>Total findings</strong></td><td>Number of security findings from the latest scan of the selected cloud.</td></tr>
-          <tr><td><strong>Risk score</strong></td><td>Numeric risk score colour-coded: green (low) → yellow (medium) → orange (high) → red (critical).</td></tr>
-          <tr><td><strong>Critical</strong></td><td>Count of critical-severity findings that need immediate remediation.</td></tr>
-        </tbody>
-      </table>
-
-      <h3>Charts</h3>
-      <table class="doc-table">
-        <thead><tr><th>Chart</th><th>Type</th><th>What it shows</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Findings by severity</strong></td><td>Donut chart</td><td>Distribution of Critical / High / Medium / Low findings from the latest scan. Total finding count shown in the centre.</td></tr>
-          <tr><td><strong>Risk score over time</strong></td><td>Line chart</td><td>Risk score trend across the last 10 scans for the selected cloud. Requires at least 2 recorded scans.</td></tr>
-          <tr><td><strong>Findings per scan</strong></td><td>Stacked bar chart</td><td>Breakdown of severity counts per scan run for the last 8 scans. Each bar is stacked Critical / High / Medium / Low.</td></tr>
-        </tbody>
-      </table>
-
-      <h3>Top recommendations panel</h3>
-      <p>
-        Immediately below the charts, the Dashboard shows the <strong>5 highest-priority recommendations</strong>
-        for the current cloud provider, derived from the severity profile of the latest scan.
-        Each recommendation shows:
-      </p>
-      <ul>
-        <li>A <strong>title</strong> and <strong>severity badge</strong></li>
-        <li>A plain-English <em>"What is this?"</em> description</li>
-        <li>The first (most important) fix step</li>
-        <li>A direct link to the cloud provider's official documentation</li>
-      </ul>
-      <p>
-        Recommendations are <strong>cloud-specific</strong>:
-      </p>
-      <ul>
-        <li><strong>AWS</strong> — e.g. "SSH port 22 open to the world", "S3 bucket publicly accessible", "IAM wildcard action"</li>
-        <li><strong>Google Cloud</strong> — e.g. "Firewall rule allows SSH from 0.0.0.0/0", "GCS bucket public", "IAM primitive roles in use"</li>
-        <li><strong>Azure</strong> — e.g. "NSG allows RDP from any IP", "Storage account allows public blob access", "Azure AD users without MFA"</li>
-      </ul>
-      <p>If no scans have been run for a cloud yet, an empty state with a "Run Scan" button is shown instead.</p>
-
-      <h3>Quick actions &amp; connection status</h3>
-      <p>
-        The bottom of the Dashboard shows 8 quick-action tiles for the most common tasks, plus a
-        <strong>cloud connection status card</strong> showing whether credentials are configured for
-        the selected provider (region for AWS, project ID for GCP, subscription ID for Azure).
-      </p>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- COMMAND PALETTE (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="command-palette">
-      <h2>🆕 Command palette (Ctrl+K)</h2>
-      <p>
-        The command palette lets you navigate anywhere in CloudRadar instantly — without touching
-        the sidebar or mouse.
-      </p>
-      <h3>How to use it</h3>
-      <ol>
-        <li>Press <kbd>Ctrl+K</kbd> (Windows/Linux) or <kbd>Cmd+K</kbd> (Mac) from <em>any page</em>.</li>
-        <li>Start typing — the palette instantly filters by page name or section.</li>
-        <li>Use <kbd>↑</kbd> / <kbd>↓</kbd> arrow keys to move through results.</li>
-        <li>Press <kbd>Enter</kbd> to navigate to the highlighted item.</li>
-        <li>Press <kbd>Esc</kbd> or click outside to close without navigating.</li>
-      </ol>
-      <p>The palette covers all 18 pages: Dashboard, Security Scan, Vulnerabilities, Findings, Attack Paths, Scheduled Scans, Notifications, List Assets, Changes, Snapshot Diff, Audit Logs, Scan History, Compliance, Governance, Pentest, Tests, Setup, and Documentation.</p>
-      <div class="tip-box">
-        <span class="tip-icon">💡</span>
-        <span>The hint <kbd>Ctrl+K</kbd> is also displayed at the bottom of the Quick actions section on the Dashboard.</span>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- FINDINGS SLIDE-OVER (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="findings-slideover">
-      <h2>🆕 Findings detail slide-over panel</h2>
-      <p>
-        The Findings page now has a <strong>right-side slide-over panel</strong>. Click any row in the
-        findings table to open it without leaving the page.
-      </p>
-      <h3>What the panel shows</h3>
-      <table class="doc-table">
-        <thead><tr><th>Section</th><th>Content</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Metadata</strong></td><td>Rule ID, resource type, resource ID, region — in a clean grid layout.</td></tr>
-          <tr><td><strong>What is this?</strong></td><td>Plain-English explanation of the security issue.</td></tr>
-          <tr><td><strong>Why it matters</strong></td><td>Explanation of the real-world risk and how attackers exploit it.</td></tr>
-          <tr><td><strong>How to fix it</strong></td><td>Step-by-step numbered remediation instructions specific to the finding type.</td></tr>
-          <tr><td><strong>AWS Docs link</strong></td><td>Direct link to the relevant official documentation page.</td></tr>
-          <tr><td><strong>Raw JSON</strong></td><td>Collapsible section showing the full raw finding object for debugging.</td></tr>
-          <tr><td><strong>Auto-remediation</strong></td><td>For supported resource types (S3, IAM roles, security groups) — dry-run or apply fix directly from the panel.</td></tr>
-        </tbody>
-      </table>
-      <h3>Filtering the findings table</h3>
-      <p>Before clicking a row, you can narrow the list with three filters:</p>
-      <ul>
-        <li><strong>Search box</strong> — filters by rule ID, resource type, resource ID, or title</li>
-        <li><strong>Severity dropdown</strong> — show only Critical / High / Medium / Low</li>
-        <li><strong>Resource type dropdown</strong> — filter to a specific service (e.g. <code>s3</code>, <code>security_group</code>)</li>
-      </ul>
-      <p>The <strong>Export CSV</strong> button exports the currently filtered list.</p>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- PER-FINDING RECOMMENDATIONS (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="recommendations">
-      <h2>🆕 Per-finding recommendation library</h2>
-      <p>
-        CloudRadar now includes a built-in recommendation library with <strong>60+ rule mappings</strong>
-        covering all three cloud providers. Every finding is matched to a recommendation that includes:
-        what the issue is, why it is dangerous, how to fix it (step by step), and a link to official docs.
-      </p>
-      <h3>AWS rules covered</h3>
-      <p>EC2 (public IP, vulnerable AMI, missing tags) · S3 (public access, no encryption, no versioning) · IAM (wildcard actions, admin policy, unused keys) · Security Groups (SSH open, RDP open, all traffic) · RDS (public, no encryption) · Lambda (hardcoded secrets) · CloudTrail (disabled) · EBS (unencrypted) · EKS (public endpoint) · GuardDuty (disabled) · KMS (no rotation) · VPC (default VPC, no flow logs) · ALB (no WAF, no access logs) · DynamoDB (no PITR) · ECR (critical CVEs, no scan-on-push)</p>
-      <h3>Google Cloud rules covered</h3>
-      <p>Compute Engine (public IP, serial port, OS patching) · Cloud Storage (public bucket, no CMEK, no versioning) · IAM (service account keys, primitive roles, no MFA) · Firewall (SSH open, RDP open) · VPC (no flow logs) · Cloud SQL (public IP, no backup) · GKE (public endpoint, legacy ABAC) · Cloud Audit Logging (disabled) · Cloud Monitoring (no alerts) · Cloud KMS (no rotation)</p>
-      <h3>Azure rules covered</h3>
-      <p>Virtual Machines (public IP, no disk encryption, no Defender for Endpoint) · Storage Accounts (public blob, no HTTPS, no CMK) · Azure AD (no MFA, excessive permissions, no PIM) · NSG (SSH open, RDP open) · Azure SQL (public access, no TDE, no auditing) · Key Vault (no expiry, no soft delete) · Azure Monitor (activity log not retained) · Defender for Cloud (not enabled) · AKS (public endpoint, RBAC disabled)</p>
-      <div class="tip-box">
-        <span class="tip-icon">ℹ️</span>
-        <span>Recommendations are matched automatically — first by exact <code>rule_id</code>, then by <code>resource_type</code> prefix. Unrecognised findings fall back to a generic cloud-appropriate recommendation.</span>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- SCAN HISTORY (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="scan-history">
-      <h2>🆕 Scan history</h2>
-      <p>
-        Every completed scan is automatically saved to browser storage. The <strong>Scan History</strong>
-        page (accessible from the Audit group in the sidebar or via Ctrl+K → "Scan History") shows a
-        full table of all recorded scans.
-      </p>
-      <h3>Table columns</h3>
-      <table class="doc-table">
-        <thead><tr><th>Column</th><th>Description</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Date &amp; Time</strong></td><td>When the scan ran.</td></tr>
-          <tr><td><strong>Cloud</strong></td><td>AWS / GCP / Azure badge.</td></tr>
-          <tr><td><strong>Region / Project</strong></td><td>The region or project ID scanned.</td></tr>
-          <tr><td><strong>Findings</strong></td><td>Total number of security findings.</td></tr>
-          <tr><td><strong>Risk score</strong></td><td>Colour-coded risk score badge.</td></tr>
-          <tr><td><strong>Critical / High</strong></td><td>Count of the two most urgent severity levels.</td></tr>
-          <tr><td><strong>Duration</strong></td><td>Scan duration in seconds.</td></tr>
-          <tr><td><strong>Status</strong></td><td>Completed / Failed / Running.</td></tr>
-        </tbody>
-      </table>
-      <h3>Slide-over detail view</h3>
-      <p>Click any row to open a detail panel showing a severity breakdown bar chart for that scan, plus a link to view the current findings.</p>
-      <h3>Storage and limits</h3>
-      <ul>
-        <li>Up to <strong>100 scan records</strong> are stored in <code>localStorage</code>. Oldest records are automatically removed when the limit is reached.</li>
-        <li>Data is stored in the browser — clearing browser storage or using a different browser will start fresh.</li>
-        <li>Use the <strong>Clear history</strong> button (with confirmation) to wipe all records.</li>
-      </ul>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- POST-SCAN SUMMARY (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="post-scan-summary">
-      <h2>🆕 Post-scan summary card</h2>
-      <p>
-        After a Security Scan completes, instead of raw JSON output, a structured
-        <strong>summary card</strong> is displayed at the bottom of the progress log.
-      </p>
-      <h3>The summary card includes</h3>
-      <ul>
-        <li><strong>Severity pills</strong> — 🔴 N Critical · 🟠 N High · 🟡 N Medium · 🟢 N Low (or "✅ No findings" if clean)</li>
-        <li><strong>Risk score badge</strong> — colour-coded and labelled (critical / high risk / medium risk / low risk)</li>
-        <li><strong>Scan metadata</strong> — cloud provider, region, total findings count</li>
-        <li><strong>Top 3 recommended actions</strong> — cloud-specific recommendations ranked by severity, each showing the title, first fix step, and severity badge</li>
-        <li><strong>Action buttons</strong> — "View All Findings →" and any download links returned by the scan</li>
-      </ul>
-      <div class="tip-box">
-        <span class="tip-icon">💡</span>
-        <span>The recommendations shown in the summary card are <strong>cloud-aware</strong>. A GCP scan shows GCP-specific recommendations; an Azure scan shows Azure-specific ones.</span>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- COMPLIANCE GAPS (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="compliance-gaps">
-      <h2>🆕 Compliance gap analysis</h2>
-      <p>
-        The Compliance page has been upgraded. When you run a check with <strong>JSON + Suggestions</strong>
-        output selected, the result is now a structured report with gap analysis — not just raw JSON.
-      </p>
-      <h3>Compliance summary strip</h3>
-      <p>Four cards show: <strong>Passed</strong> count, <strong>Failed</strong> count, overall <strong>Compliance %</strong> (colour-coded), and the selected <strong>Framework</strong>. A progress bar visualises the compliance percentage.</p>
-
-      <h3>Failed controls — gap analysis</h3>
-      <p>
-        Each failed control appears in an expandable row. Click the row to see:
-      </p>
-      <ul>
-        <li>The control description / reason for failure</li>
-        <li>A <strong>gap recommendation</strong> automatically matched to the control — includes what to do, step-by-step fix instructions, and a link to official documentation</li>
-      </ul>
-      <p>Controls are matched to recommendations using keyword mapping against the control ID and name (e.g. a control mentioning "CloudTrail" maps to the CloudTrail disabled recommendation; a control mentioning "S3 encrypt" maps to the S3 encryption recommendation).</p>
-
-      <h3>Passed controls</h3>
-      <p>All passing controls are shown in a collapsible section beneath the failed ones.</p>
-
-      <h3>Raw JSON toggle</h3>
-      <p>The full raw API response is always available via a collapsible "Raw JSON response" section at the bottom.</p>
-
-      <h3>How to use</h3>
-      <ol>
-        <li>Go to <strong>Compliance</strong> in the sidebar.</li>
-        <li>Select a framework (CIS, SOC 2, HIPAA, PCI DSS, or ISO 27001).</li>
-        <li>Select <strong>JSON + Suggestions</strong> as the output format.</li>
-        <li>Click <strong>Run compliance check</strong>.</li>
-        <li>Review the summary, then expand any failed control for specific remediation guidance.</li>
-      </ol>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- TOAST NOTIFICATIONS (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="toast">
-      <h2>🆕 Toast notification system</h2>
-      <p>
-        A global toast notification layer is now active across the application. Toasts appear in the
-        <strong>bottom-right corner</strong> of the screen and automatically dismiss after a few seconds.
-      </p>
-      <table class="doc-table">
-        <thead><tr><th>Type</th><th>Colour</th><th>Used for</th><th>Auto-dismiss</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Success</strong></td><td>Green</td><td>Completed actions (scan started, CSV exported, etc.)</td><td>4 seconds</td></tr>
-          <tr><td><strong>Error</strong></td><td>Red</td><td>Failed operations, API errors</td><td>6 seconds</td></tr>
-          <tr><td><strong>Warning</strong></td><td>Amber</td><td>Non-critical issues requiring attention</td><td>4 seconds</td></tr>
-          <tr><td><strong>Info</strong></td><td>Blue</td><td>Informational messages</td><td>4 seconds</td></tr>
-        </tbody>
-      </table>
-      <p>Multiple toasts can stack. Click any toast to dismiss it immediately.</p>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- SIDEBAR FEATURES (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="sidebar-features">
-      <h2>🆕 Sidebar features</h2>
-
-      <h3>Collapse / expand</h3>
-      <p>Click the <strong>arrow button</strong> in the top-right of the sidebar to collapse it to icon-only mode. Click again to expand. The state is remembered across browser sessions. The main content area smoothly adjusts its margin.</p>
-
-      <h3>Collapsible navigation groups</h3>
-      <p>Each navigation section (Security, Audit, Compliance, Governance, Pentest, Tests) has a <strong>▾ arrow toggle</strong> on the right. Click the group header to collapse or expand its links. Group states are saved in browser storage — your preferred layout is remembered between visits.</p>
-
-      <h3>User profile</h3>
-      <p>The bottom of the sidebar shows a user avatar with auto-generated initials and a colour derived from your name. Click the edit icon to change your display name. The name is saved in browser storage.</p>
-
-      <h3>Audit Logs</h3>
-      <p>The <strong>Audit Logs</strong> page (under the Audit group) records who ran what and when. Logs are stored in browser storage and can be filtered by user, status, and keyword, then exported to CSV or cleared.</p>
-
-      <h3>Scan History in sidebar</h3>
-      <p>The <strong>Scan History</strong> link now appears in the Audit group, giving quick access to the full scan history table from anywhere.</p>
-
-      <h3>Theme toggle</h3>
-      <p>The sun ☀ / moon 🌙 buttons at the bottom of the sidebar toggle between dark and light mode. The choice is saved in browser storage.</p>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- MOBILE SUPPORT (NEW) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="mobile">
-      <h2>🆕 Mobile &amp; responsive support</h2>
-      <p>
-        CloudRadar now works on mobile phones and tablets.
-      </p>
-      <ul>
-        <li>On screens narrower than <strong>768 px</strong>, the sidebar is hidden by default.</li>
-        <li>A <strong>hamburger button ☰</strong> appears in the top-left corner to open the sidebar as an overlay.</li>
-        <li>A <strong>dark backdrop</strong> covers the main content while the sidebar is open — tap it to close.</li>
-        <li>The main content padding and layout adjust automatically for small screens.</li>
-      </ul>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- SECURITY SCAN (EXISTING) -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="security">
-      <h2>Security — Full security scan</h2>
-      <p>
-        The <strong>Security Scan</strong> runs end-to-end discovery, enrichment, rule evaluation, risk scoring,
-        and optionally saves a snapshot. Progress is shown step-by-step in real time. After completion, a
-        <strong>structured summary card</strong> replaces the raw JSON output (see <a href="#post-scan-summary">Post-scan summary card</a>).
-      </p>
-      <p>Select which services to scan using the script selector. Deselecting a service skips all its API calls — useful for faster, cheaper targeted scans.</p>
-
-      <h3>Services &amp; what is checked</h3>
-      <table class="doc-table">
-        <thead><tr><th>Service</th><th>Script ID</th><th>What is checked</th></tr></thead>
-        <tbody>
-          <tr><td><strong>EC2</strong></td><td><code>ec2</code></td><td>Public IPs, vulnerable AMIs, instance types, missing required tags.</td></tr>
-          <tr><td><strong>S3</strong></td><td><code>s3</code></td><td>Public-access-block disabled, missing server-side encryption, overly permissive bucket policies.</td></tr>
-          <tr><td><strong>RDS</strong></td><td><code>rds</code></td><td>Publicly accessible flag, storage encryption at rest disabled.</td></tr>
-          <tr><td><strong>Lambda</strong></td><td><code>lambda</code></td><td>Short or missing timeout, hardcoded secrets in env vars, missing tags.</td></tr>
-          <tr><td><strong>IAM</strong></td><td><code>iam</code></td><td>Wildcard actions in policies, admin-policy attachments, unused access keys.</td></tr>
-          <tr><td><strong>Security Groups</strong></td><td><code>sg</code></td><td>Inbound rules open to 0.0.0.0/0 on ports 22, 3389, 3306, 5432, 1433, and others.</td></tr>
-          <tr><td><strong>ALB</strong></td><td><code>alb</code></td><td>Internet-facing ALBs missing WAF Web ACL, access logging disabled.</td></tr>
-          <tr><td><strong>WAF</strong></td><td><code>waf</code></td><td>Web ACLs not associated with API Gateway or ALB resources.</td></tr>
-          <tr><td><strong>CloudTrail</strong></td><td><code>cloudtrail</code></td><td>Multi-region not enabled, log file validation off, CloudWatch integration missing.</td></tr>
-          <tr><td><strong>VPC</strong></td><td><code>vpc</code></td><td>Default VPC still in use, VPC flow logs not enabled.</td></tr>
-          <tr><td><strong>EBS Volumes</strong></td><td><code>ebs</code></td><td>Volumes without encryption at rest.</td></tr>
-          <tr><td><strong>EKS</strong></td><td><code>eks</code></td><td>Public API server endpoint, control plane logging disabled, secrets encryption missing.</td></tr>
-          <tr><td><strong>ECS</strong></td><td><code>ecs</code></td><td>Privileged containers, missing CloudWatch log config, containers running as root.</td></tr>
-          <tr><td><strong>KMS</strong></td><td><code>kms</code></td><td>Customer-managed keys with automatic rotation disabled.</td></tr>
-          <tr><td><strong>API Gateway</strong></td><td><code>apigateway</code></td><td>Access logging not enabled, WAF not attached to REST API stages.</td></tr>
-          <tr><td><strong>SQS</strong></td><td><code>sqs</code></td><td>Queues without server-side encryption, public resource policy exposure.</td></tr>
-          <tr><td><strong>DynamoDB</strong></td><td><code>dynamodb</code></td><td>Tables without encryption at rest, PITR disabled.</td></tr>
-          <tr><td><strong>GuardDuty</strong></td><td><code>guardduty</code></td><td>Threat detection detector not enabled in the scanned region.</td></tr>
-          <tr><td><strong>CloudWatch</strong></td><td><code>cloudwatch</code></td><td>Missing CIS metric filters for root login, IAM/CloudTrail/VPC/KMS/S3 changes.</td></tr>
-          <tr><td><strong>ECR</strong></td><td><code>ecr</code></td><td>Container images with critical/high CVEs, scan-on-push not enabled.</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- VULNERABILITIES -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="vulnerabilities">
-      <h2>Security — Vulnerabilities</h2>
-      <p>A focused scan for known CVEs and AMI issues without running the full CSPM rule engine.</p>
-      <table class="doc-table">
-        <thead><tr><th>Script</th><th>ID</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>ECR Image Scan</strong></td>
-            <td><code>ecr</code></td>
-            <td>Pulls all ECR repositories and checks each image tag for CVE findings. Reports critical and high severity CVEs with package name, version, and fix version where available.</td>
-          </tr>
-          <tr>
-            <td><strong>AMI Vulnerability Check</strong></td>
-            <td><code>ami</code></td>
-            <td>Checks EC2 instances for deprecated AMIs (older than 180 days), public AMI usage, and known-vulnerable AMI IDs.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- AUDIT -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="audit">
-      <h2>Audit</h2>
-      <p>Audit scripts let you inspect and compare your asset catalog over time. They do not run security rules.</p>
-      <table class="doc-table">
-        <thead><tr><th>Page</th><th>What it does</th><th>Options</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>List assets</strong></td>
-            <td>Exports the full asset catalog from the last scan (or a named snapshot) as JSON or CSV. Includes resource type, ID, region, tags, and risk-score field.</td>
-            <td>Output format (JSON / CSV); Snapshot ID (optional).</td>
-          </tr>
-          <tr>
-            <td><strong>Changes</strong></td>
-            <td>Compares the current cloud state with the last saved snapshot. Reports added, removed, and modified resources.</td>
-            <td>Runs automatically from latest scan vs. previous snapshot.</td>
-          </tr>
-          <tr>
-            <td><strong>Snapshot diff</strong></td>
-            <td>Compares two named snapshots by ID. Shows the exact diff between any two points in time.</td>
-            <td>Snapshot ID A and Snapshot ID B.</td>
-          </tr>
-          <tr>
-            <td><strong>Audit Logs</strong></td>
-            <td>Browser-local log of who ran what action and when. Searchable, filterable, and exportable.</td>
-            <td>Filter by user, status, or text. Export CSV. Clear all logs.</td>
-          </tr>
-          <tr>
-            <td><strong>Scan History</strong></td>
-            <td>All completed scans recorded in browser storage with severity breakdown and risk scores.</td>
-            <td>Click any row for a detail slide-over. Clear history button.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- COMPLIANCE -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="compliance">
-      <h2>Compliance</h2>
-      <p>Maps security findings to framework controls and generates a pass/fail report with remediation guidance. The check uses findings from the latest scan (or triggers a new scan if no data exists).</p>
-      <table class="doc-table">
-        <thead><tr><th>Framework</th><th>Standard</th><th>Focus</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>CIS</strong></td>
-            <td>CIS AWS Foundations Benchmark v1.5</td>
-            <td>IAM password policy, MFA on root, CloudTrail enabled, VPC flow logs, S3 logging, CloudWatch alarms.</td>
-          </tr>
-          <tr>
-            <td><strong>SOC 2</strong></td>
-            <td>AICPA SOC 2 Trust Services Criteria</td>
-            <td>Logical access controls, encryption in transit and at rest, monitoring, incident response readiness.</td>
-          </tr>
-          <tr>
-            <td><strong>HIPAA</strong></td>
-            <td>HIPAA Security Rule (45 CFR Part 164)</td>
-            <td>Access control, audit controls, integrity, transmission security, encryption of PHI at rest and in transit.</td>
-          </tr>
-          <tr>
-            <td><strong>PCI DSS</strong></td>
-            <td>PCI DSS v4.0</td>
-            <td>Firewall rules, no default credentials, encryption of cardholder data, access control, monitoring &amp; logging.</td>
-          </tr>
-          <tr>
-            <td><strong>ISO 27001</strong></td>
-            <td>ISO/IEC 27001:2022 Annex A</td>
-            <td>A.5 policies, A.6 people controls, A.8 asset management, A.8.20 network security, A.8.24 cryptography, A.8.15 logging.</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="tip-box">
-        <span class="tip-icon">🆕</span>
-        <span>Select <strong>JSON + Suggestions</strong> as the output format to get per-control gap analysis with specific remediation steps. See <a href="#compliance-gaps">Compliance gap analysis</a> for full details.</span>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- GOVERNANCE -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="governance">
-      <h2>Governance</h2>
-      <p>Governance checks enforce your organisation's resource policies and tagging standards.</p>
-      <table class="doc-table">
-        <thead><tr><th>Script</th><th>ID</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>Tag Compliance</strong></td>
-            <td><code>tags</code></td>
-            <td>Scans all resources for required tags (e.g. <code>Environment</code>, <code>Owner</code>, <code>CostCenter</code>). Reports missing or empty tag values. Configurable in <code>config.yaml</code>.</td>
-          </tr>
-          <tr>
-            <td><strong>Resource Policy Checks</strong></td>
-            <td><code>policy</code></td>
-            <td>Validates resources against defined policies: forbidden instance types in production, minimum backup retention, required encryption settings.</td>
-          </tr>
-          <tr>
-            <td><strong>Policy Violations</strong></td>
-            <td><code>violations</code></td>
-            <td>Detects resources violating governance policies: publicly exposed resources, unencrypted storage, over-privileged IAM roles.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- PENTEST -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="pentest">
-      <h2>Pentest</h2>
-      <p>Pentest checks simulate an attacker's perspective — finding exposed entry points, leaked secrets, and exploitable chains.</p>
-      <table class="doc-table">
-        <thead><tr><th>Script</th><th>ID</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>Exposed Services</strong></td>
-            <td><code>exposed</code></td>
-            <td>Checks security groups and NACLs for inbound rules exposing sensitive ports (22, 3389, 3306, 5432, 1433, 27017, 6379, 9200, etc.) to the public internet.</td>
-          </tr>
-          <tr>
-            <td><strong>Secrets Scan</strong></td>
-            <td><code>secrets</code></td>
-            <td>Searches asset metadata (Lambda env vars, EC2 user-data, ECS task definitions) and optionally a local repo path for hardcoded secrets using regex patterns.</td>
-          </tr>
-          <tr>
-            <td><strong>Exploit Mapping</strong></td>
-            <td><code>exploits</code></td>
-            <td>Maps findings to known exploit chains using a graph engine. Example: public-S3 + wildcard-IAM = data exfiltration path; exposed-EC2 + EKS-public-API = cluster takeover path.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- TESTS -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="tests">
-      <h2>Tests</h2>
-      <p>Runs CloudRadar's built-in unit and integration test suite using <code>pytest</code> with mocked AWS services. Tests never make real API calls.</p>
-      <table class="doc-table">
-        <thead><tr><th>Module</th><th>What it tests</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Rule Engine</strong></td><td>Security rules fire correctly and produce accurate findings with correct fields.</td></tr>
-          <tr><td><strong>S3 Scanner</strong></td><td>S3-specific scanner end-to-end with moto: public bucket, no encryption, permissive policy, clean bucket.</td></tr>
-          <tr><td><strong>Compliance Frameworks</strong></td><td>All five frameworks map findings to controls correctly; pass/fail is accurate; clean environment produces all-pass report.</td></tr>
-          <tr><td><strong>Remediation Engine</strong></td><td>Auto-remediation actions are generated correctly for each finding type.</td></tr>
-          <tr><td><strong>Attack Paths</strong></td><td>Attack path graph builds correctly; high-severity chains are detected; isolated resources produce no path.</td></tr>
-          <tr><td><strong>All Scanners</strong></td><td>Integration tests for every scanner module: EC2, RDS, IAM, Lambda, CloudTrail, VPC, EBS, EKS, ECS, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch.</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- HOSTING -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <section class="doc-section" id="hosting">
-      <h2>Running CloudRadar</h2>
-      <h3>Local setup</h3>
-      <ol>
-        <li>Install Python deps: <code>pip install -e .</code></li>
-        <li>Install and build frontend: <code>cd frontend &amp;&amp; npm install &amp;&amp; npm run build</code></li>
-        <li>Start the server: <code>python -m cspm.cli ui --host 127.0.0.1 --port 8000</code></li>
-        <li>Open <code>http://127.0.0.1:8000</code>, select your cloud, and enter credentials in Setup.</li>
-      </ol>
-
-      <h3>Hosted on a server</h3>
-      <ol>
-        <li>Build the frontend on the server (or copy the <code>frontend/dist/</code> folder).</li>
-        <li>Run: <code>python -m cspm.cli ui --host 0.0.0.0 --port 8000</code></li>
-        <li>Put Nginx or another reverse proxy in front with HTTPS.</li>
-        <li>Add this to your Nginx config to prevent SSE buffering:<pre class="doc-code">proxy_buffering off;
-X-Accel-Buffering: no;</pre></li>
-        <li>Prefer IAM roles (AWS), Workload Identity (GCP), or Managed Identity (Azure) instead of storing keys in <code>config.yaml</code>.</li>
-      </ol>
-
-      <h3>Docker</h3>
-      <p>A <code>docker-compose.yml</code> is included. Run <code>docker compose up --build</code> to start the full stack. Set credentials via environment variables or mount a <code>config.yaml</code> volume.</p>
-    </section>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const showFab = ref(false)
+
+function onScroll() {
+  showFab.value = (document.documentElement.scrollTop || document.body.scrollTop) > 300
+}
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
+
+const toc = [
+  { id: 'overview',             label: 'Overview' },
+  { id: 'getting-started',      label: 'Getting started' },
+  { id: 'cloud-setup',          label: '  Cloud credentials setup', sub: true },
+  { id: 'first-scan',           label: '  First scan', sub: true },
+  { id: 'dashboard',            label: 'Dashboard' },
+  { id: 'dashboard-clouds',     label: '  Multi-cloud tabs', sub: true },
+  { id: 'dashboard-charts',     label: '  Charts', sub: true },
+  { id: 'dashboard-recs',       label: '  Top 5 Recommendations', sub: true },
+  { id: 'security-scan',        label: 'Security Scan' },
+  { id: 'scan-aws',             label: '  AWS services', sub: true },
+  { id: 'scan-gcp',             label: '  Google Cloud services', sub: true },
+  { id: 'scan-azure',           label: '  Azure services', sub: true },
+  { id: 'scan-summary',         label: '  Post-scan summary card', sub: true },
+  { id: 'findings',             label: 'Findings' },
+  { id: 'findings-slideover',   label: '  Slide-over panel', sub: true },
+  { id: 'vulnerabilities',      label: 'Vulnerabilities' },
+  { id: 'pentest',              label: 'Pentest' },
+  { id: 'security-checks',      label: 'Security checks reference' },
+  { id: 'checks-aws',           label: '  AWS checks', sub: true },
+  { id: 'checks-gcp',           label: '  Google Cloud checks', sub: true },
+  { id: 'checks-azure',         label: '  Azure checks', sub: true },
+  { id: 'compliance',           label: 'Compliance & gap analysis' },
+  { id: 'attack-paths',         label: 'Attack Paths' },
+  { id: 'governance',           label: 'Governance' },
+  { id: 'scan-history',         label: 'Scan History' },
+  { id: 'notifications',        label: 'Notifications' },
+  { id: 'scheduled-scans',      label: 'Scheduled Scans' },
+  { id: 'ui-features',          label: 'UI features' },
+  { id: 'command-palette',      label: '  Command palette (Ctrl+K)', sub: true },
+  { id: 'sidebar',              label: '  Sidebar', sub: true },
+  { id: 'toast',                label: '  Toast notifications', sub: true },
+  { id: 'mobile',               label: '  Mobile support', sub: true },
+  { id: 'recommendations-engine', label: 'Recommendations engine' },
+  { id: 'api',                  label: 'Backend API' },
+  { id: 'changelog',            label: 'Changelog' },
+]
+
+const awsServices = [
+  'EC2', 'S3', 'RDS', 'Lambda', 'IAM', 'Security Groups', 'Load Balancers (ALB)',
+  'WAF', 'CloudTrail', 'VPC', 'EBS Volumes', 'EKS', 'ECS', 'KMS', 'API Gateway',
+  'SQS', 'DynamoDB', 'GuardDuty', 'CloudWatch', 'ECR', 'Cognito', 'AWS Config',
+  'AWS Backup', 'Redshift', 'ElastiCache', 'OpenSearch', 'Route 53',
+  'Secrets Manager', 'CodeBuild', 'CloudFormation',
+]
+
+const gcpServices = [
+  'Compute Engine', 'Cloud Storage', 'Cloud SQL', 'Cloud Functions', 'IAM & Admin',
+  'VPC Firewall Rules', 'Cloud Load Balancing', 'Cloud Armor', 'Cloud Audit Logs',
+  'VPC Networks', 'Persistent Disks', 'GKE', 'Cloud Run', 'Cloud KMS', 'API Gateway',
+  'Pub/Sub', 'Firestore / Datastore', 'Security Command Center', 'Cloud Monitoring',
+  'Artifact Registry', 'BigQuery', 'Cloud DNS', 'Secret Manager',
+]
+
+const azureServices = [
+  'Virtual Machines', 'Storage Accounts', 'Azure SQL', 'Azure Functions',
+  'Azure AD & RBAC', 'Network Security Groups', 'Application Gateway', 'Azure WAF',
+  'Azure Monitor', 'Virtual Networks', 'Managed Disks', 'AKS', 'Container Instances',
+  'Key Vault', 'API Management', 'Service Bus', 'Cosmos DB', 'Defender for Cloud',
+  'Azure Alerts / Sentinel', 'Container Registry', 'App Service', 'Log Analytics',
+  'Azure Cache for Redis',
+]
+
+const awsChecks = [
+  { id: 'ec2.public_ip',                        title: 'EC2 Instance Has Public IP',                     sev: 'medium' },
+  { id: 'ec2.vulnerable_ami',                   title: 'EC2 Using Vulnerable or Deprecated AMI',         sev: 'high' },
+  { id: 's3.public_access',                     title: 'S3 Bucket Publicly Accessible',                  sev: 'critical' },
+  { id: 's3.no_encryption',                     title: 'S3 Bucket Not Encrypted at Rest',                sev: 'high' },
+  { id: 'rds.publicly_accessible',              title: 'RDS Publicly Accessible',                        sev: 'critical' },
+  { id: 'rds.no_encryption',                    title: 'RDS Storage Not Encrypted',                      sev: 'high' },
+  { id: 'lambda.hardcoded_secret',              title: 'Lambda — Hardcoded Secret in Env Var',           sev: 'critical' },
+  { id: 'iam.wildcard_action',                  title: 'IAM Policy Allows Wildcard Action',              sev: 'critical' },
+  { id: 'iam.unused_keys',                      title: 'IAM User Has Unused Access Keys',                sev: 'high' },
+  { id: 'iam.no_mfa',                           title: 'IAM User Has No MFA',                            sev: 'high' },
+  { id: 'iam.password_policy_weak',             title: 'IAM Password Policy Too Weak',                   sev: 'medium' },
+  { id: 'sg.ssh_open',                          title: 'Security Group Allows SSH from 0.0.0.0/0',       sev: 'critical' },
+  { id: 'sg.rdp_open',                          title: 'Security Group Allows RDP from 0.0.0.0/0',       sev: 'critical' },
+  { id: 'cloudtrail.disabled',                  title: 'CloudTrail Not Enabled',                         sev: 'critical' },
+  { id: 'cloudtrail.no_log_validation',         title: 'CloudTrail Log File Validation Disabled',        sev: 'high' },
+  { id: 'vpc.no_flow_logs',                     title: 'VPC Flow Logs Not Enabled',                      sev: 'medium' },
+  { id: 'ebs.no_encryption',                    title: 'EBS Volume Not Encrypted',                       sev: 'high' },
+  { id: 'eks.public_endpoint',                  title: 'EKS API Server Has Public Endpoint',             sev: 'high' },
+  { id: 'kms.no_rotation',                      title: 'KMS Key Rotation Not Enabled',                   sev: 'medium' },
+  { id: 'alb.no_waf',                           title: 'ALB Has No WAF Web ACL',                         sev: 'medium' },
+  { id: 'guardduty.disabled',                   title: 'GuardDuty Not Enabled',                          sev: 'high' },
+  { id: 'ecr.critical_cve',                     title: 'ECR Image Has Critical CVE',                     sev: 'critical' },
+  { id: 'cognito.no_mfa',                       title: 'Cognito User Pool — MFA Not Required',           sev: 'high' },
+  { id: 'cognito.no_advanced_security',         title: 'Cognito Advanced Security Mode Disabled',        sev: 'medium' },
+  { id: 'cognito.weak_password_policy',         title: 'Cognito User Pool Has Weak Password Policy',     sev: 'medium' },
+  { id: 'config.recorder_disabled',             title: 'AWS Config Recorder Not Enabled',                sev: 'high' },
+  { id: 'backup.no_plan',                       title: 'No AWS Backup Plan Configured',                  sev: 'high' },
+  { id: 'redshift.publicly_accessible',         title: 'Redshift Cluster Publicly Accessible',           sev: 'critical' },
+  { id: 'redshift.no_encryption',               title: 'Redshift Cluster Not Encrypted',                 sev: 'high' },
+  { id: 'redshift.no_audit_logging',            title: 'Redshift Audit Logging Disabled',                sev: 'medium' },
+  { id: 'elasticache.no_auth',                  title: 'ElastiCache Redis — No AUTH Token',              sev: 'critical' },
+  { id: 'elasticache.no_tls',                   title: 'ElastiCache — In-Transit Encryption Disabled',   sev: 'high' },
+  { id: 'opensearch.public_endpoint',           title: 'OpenSearch Domain Has Public Endpoint',          sev: 'critical' },
+  { id: 'opensearch.no_encryption_at_rest',     title: 'OpenSearch Domain Not Encrypted at Rest',        sev: 'high' },
+  { id: 'route53.dangling_dns',                 title: 'Route 53 — Dangling DNS Record',                 sev: 'high' },
+  { id: 'route53.zone_transfer',                title: 'Route 53 Zone Transfer Allowed',                 sev: 'medium' },
+  { id: 'secretsmanager.no_rotation',           title: 'Secrets Manager — Rotation Disabled',            sev: 'high' },
+  { id: 'secretsmanager.stale_secret',          title: 'Secrets Manager — Secret Not Accessed 180d+',   sev: 'medium' },
+  { id: 'codebuild.no_logging',                 title: 'CodeBuild Project — Logging Disabled',           sev: 'medium' },
+  { id: 'codebuild.privileged_mode',            title: 'CodeBuild Project — Privileged Mode Enabled',   sev: 'high' },
+  { id: 'cloudformation.no_termination_protection', title: 'CloudFormation — Termination Protection Off', sev: 'medium' },
+]
+
+const gcpChecks = [
+  { id: 'gcp.compute.public_ip',          title: 'Compute Engine — Public IP Assigned',               sev: 'medium' },
+  { id: 'gcp.storage.public_bucket',      title: 'Cloud Storage Bucket Publicly Accessible',          sev: 'critical' },
+  { id: 'gcp.storage.no_versioning',      title: 'Cloud Storage Bucket Versioning Disabled',          sev: 'medium' },
+  { id: 'gcp.iam.service_account_key',    title: 'Service Account — User-Managed Key',                sev: 'high' },
+  { id: 'gcp.iam.primitive_roles',        title: 'Primitive IAM Roles (Owner/Editor) In Use',         sev: 'high' },
+  { id: 'gcp.iam.no_mfa',                 title: 'User Without 2-Step Verification',                  sev: 'critical' },
+  { id: 'gcp.firewall.ssh_open',          title: 'Firewall Rule Allows SSH from 0.0.0.0/0',           sev: 'critical' },
+  { id: 'gcp.firewall.rdp_open',          title: 'Firewall Rule Allows RDP from 0.0.0.0/0',           sev: 'critical' },
+  { id: 'gcp.sql.public_ip',              title: 'Cloud SQL — Public IP Enabled',                     sev: 'high' },
+  { id: 'gcp.gke.public_endpoint',        title: 'GKE API Server Has Public Endpoint',                sev: 'high' },
+  { id: 'gcp.logging.disabled',           title: 'Cloud Audit Logging Disabled',                      sev: 'critical' },
+  { id: 'gcp.kms.no_rotation',            title: 'Cloud KMS Key — No Auto-Rotation',                  sev: 'medium' },
+  { id: 'gcp.vpc.no_flow_logs',           title: 'VPC Subnet — Flow Logs Disabled',                   sev: 'medium' },
+  { id: 'gcp.monitoring.no_alerts',       title: 'Cloud Monitoring — No Alert Policies',              sev: 'high' },
+  { id: 'gcp.compute.os_not_patched',     title: 'Compute Engine VM — OS Not Patched',                sev: 'high' },
+  { id: 'gcp.bigquery.public_dataset',    title: 'BigQuery Dataset Publicly Accessible',              sev: 'critical' },
+  { id: 'gcp.bigquery.no_cmek',           title: 'BigQuery Dataset Not Using CMEK',                   sev: 'medium' },
+  { id: 'gcp.dns.dnssec_disabled',        title: 'Cloud DNS — DNSSEC Disabled',                      sev: 'medium' },
+  { id: 'gcp.secretmanager.no_rotation',  title: 'Secret Manager — No Rotation Policy',               sev: 'medium' },
+  { id: 'gcp.cloudrun.public_access',     title: 'Cloud Run — Unauthenticated Invocation Allowed',   sev: 'high' },
+]
+
+const azureChecks = [
+  { id: 'azure.vm.public_ip',                   title: 'VM — Public IP Directly Assigned',                 sev: 'medium' },
+  { id: 'azure.vm.no_disk_encryption',          title: 'VM — OS/Data Disk Not Encrypted',                  sev: 'high' },
+  { id: 'azure.vm.no_mde',                      title: 'VM — Defender for Endpoint Not Deployed',          sev: 'high' },
+  { id: 'azure.storage.public_blob',            title: 'Storage Account — Public Blob Access Enabled',     sev: 'critical' },
+  { id: 'azure.storage.no_https',               title: 'Storage Account — HTTP Connections Allowed',       sev: 'high' },
+  { id: 'azure.storage.no_cmk',                 title: 'Storage Account — Not Using CMK',                  sev: 'medium' },
+  { id: 'azure.iam.no_mfa',                     title: 'Azure AD User — MFA Not Enabled',                  sev: 'critical' },
+  { id: 'azure.iam.excessive_permissions',      title: 'User/SP Has Excessive RBAC Permissions',           sev: 'critical' },
+  { id: 'azure.nsg.ssh_open',                   title: 'NSG — SSH Allowed from Internet',                  sev: 'critical' },
+  { id: 'azure.nsg.rdp_open',                   title: 'NSG — RDP Allowed from Internet',                  sev: 'critical' },
+  { id: 'azure.sql.public_access',              title: 'Azure SQL — Public Network Access Enabled',        sev: 'critical' },
+  { id: 'azure.sql.no_auditing',                title: 'Azure SQL — Auditing Disabled',                    sev: 'high' },
+  { id: 'azure.sql.no_tde',                     title: 'Azure SQL — TDE with CMK Not Configured',          sev: 'medium' },
+  { id: 'azure.keyvault.no_expiry',             title: 'Key Vault — Key/Secret Without Expiry Date',       sev: 'high' },
+  { id: 'azure.monitor.no_logs',                title: 'Azure Monitor — Activity Log Diagnostics Missing', sev: 'high' },
+  { id: 'azure.aks.public_endpoint',            title: 'AKS API Server Has Public Endpoint',               sev: 'high' },
+  { id: 'azure.aks.rbac_disabled',              title: 'RBAC Disabled on AKS Cluster',                     sev: 'high' },
+  { id: 'azure.defender.not_enabled',           title: 'Defender for Cloud Plan Not Enabled',              sev: 'high' },
+  { id: 'azure.appservice.http_allowed',        title: 'App Service — HTTP Not Redirected to HTTPS',       sev: 'high' },
+  { id: 'azure.appservice.remote_debugging',    title: 'App Service — Remote Debugging Enabled',           sev: 'high' },
+  { id: 'azure.appservice.no_managed_identity', title: 'App Service — No Managed Identity',                sev: 'medium' },
+  { id: 'azure.redis.non_ssl_port',             title: 'Azure Cache for Redis — Non-SSL Port Enabled',     sev: 'high' },
+  { id: 'azure.loganalytics.short_retention',   title: 'Log Analytics — Short Retention Period',           sev: 'medium' },
+  { id: 'azure.cosmosdb.public_endpoint',       title: 'Cosmos DB — Public Network Access Enabled',        sev: 'high' },
+  { id: 'azure.cosmosdb.local_auth',            title: 'Cosmos DB — Local Authentication Not Disabled',    sev: 'high' },
+  { id: 'azure.servicebus.no_cmk',              title: 'Service Bus — No Customer-Managed Key',            sev: 'medium' },
+  { id: 'azure.acr.admin_enabled',              title: 'Container Registry — Admin Account Enabled',       sev: 'high' },
+]
+
+const apiEndpoints = [
+  { method: 'POST', path: '/api/scan',                   desc: 'Start a new security scan job' },
+  { method: 'GET',  path: '/api/scan/<job_id>',          desc: 'Poll scan job status and results' },
+  { method: 'GET',  path: '/api/scan/<job_id>/stream',   desc: 'SSE stream of real-time scan step events' },
+  { method: 'GET',  path: '/api/findings',               desc: 'Get latest findings (optionally filtered)' },
+  { method: 'POST', path: '/api/compliance',             desc: 'Run compliance framework checks' },
+  { method: 'GET',  path: '/api/attack-paths',           desc: 'Get detected attack paths' },
+  { method: 'POST', path: '/api/vulnerabilities',        desc: 'Run vulnerability checks' },
+  { method: 'POST', path: '/api/pentest',                desc: 'Run pentest / exploit mapping checks' },
+  { method: 'GET',  path: '/api/notifications',          desc: 'Get recent notifications' },
+  { method: 'GET',  path: '/api/scheduler',              desc: 'List scheduled scans' },
+  { method: 'POST', path: '/api/scheduler',              desc: 'Create a scheduled scan' },
+]
 </script>
 
 <style scoped>
-.doc-page { max-width: 860px; }
+.docs-root { padding: 0; }
+.docs-layout { display: flex; gap: 0; align-items: flex-start; }
 
-/* Masthead */
-.doc-masthead { margin-bottom: 24px; }
-.doc-intro { font-size: 1.05rem; color: var(--text-muted); margin: 8px 0 12px; line-height: 1.6; }
-.version-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background: rgba(14,165,233,0.15); color: var(--accent); border: 1px solid rgba(14,165,233,0.25); }
+/* TOC sidebar */
+.docs-toc {
+  position: sticky; top: 0; width: 210px; min-width: 210px;
+  height: 100vh; overflow-y: auto; padding: 28px 0 28px 4px;
+  border-right: 1px solid var(--border); flex-shrink: 0;
+}
+.toc-title {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-muted); padding: 0 16px 10px;
+}
+.toc-link {
+  display: block; padding: 4px 16px; font-size: 0.81rem;
+  color: var(--text-muted); text-decoration: none; border-radius: 5px;
+  transition: color 0.13s, background 0.13s; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; line-height: 1.6;
+}
+.toc-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.toc-sub { padding-left: 26px; font-size: 0.78rem; }
 
-/* TOC */
-.doc-toc {
-  display: flex; flex-wrap: wrap; gap: 16px 32px;
-  padding: 16px 20px;
-  background: rgba(14,165,233,0.05);
-  border: 1px solid rgba(14,165,233,0.2);
-  border-radius: 12px;
-  margin-bottom: 36px;
+/* Content area */
+.docs-content { flex: 1; min-width: 0; padding: 32px 40px 60px; max-width: 900px; }
+.docs-content section { margin-bottom: 48px; }
+.docs-content h1 { font-size: 2rem; margin-bottom: 10px; }
+.docs-content h2 { font-size: 1.35rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.docs-content h3 { font-size: 1.05rem; margin: 22px 0 8px; color: var(--text); }
+.docs-content p { margin-bottom: 12px; line-height: 1.7; color: var(--text-muted); }
+.docs-content p.lead { font-size: 1.05rem; color: var(--text); }
+.docs-content ul, .docs-content ol { padding-left: 22px; margin-bottom: 12px; }
+.docs-content li { line-height: 1.7; color: var(--text-muted); margin-bottom: 3px; }
+.docs-content li strong { color: var(--text); }
+.docs-content code {
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
+  padding: 1px 6px; border-radius: 4px; font-size: 0.85em; color: #a5b4fc;
 }
-.toc-group { display: flex; flex-direction: column; gap: 4px; }
-.toc-group-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 2px; }
-.doc-toc a { font-size: 0.84rem; color: var(--accent); text-decoration: none; white-space: nowrap; }
-.doc-toc a:hover { text-decoration: underline; }
 
-/* Sections */
-.doc-section { margin-bottom: 40px; }
-.doc-section h2 {
-  font-size: 1.15rem; color: var(--text); margin: 0 0 14px;
-  padding-bottom: 8px; border-bottom: 2px solid var(--border);
-  display: flex; align-items: center; gap: 8px;
-}
-.doc-section h3 { font-size: 0.95rem; margin: 20px 0 8px; color: var(--text); font-weight: 600; }
-.doc-section p, .doc-section ul, .doc-section ol { margin: 0 0 12px; line-height: 1.65; color: var(--text); }
-.doc-section ul, .doc-section ol { padding-left: 24px; }
-.doc-section li { margin-bottom: 4px; }
-.doc-section a { color: var(--accent); }
-.doc-section code {
-  background: rgba(0,0,0,0.3); padding: 2px 6px;
-  border-radius: 4px; font-size: 0.85em;
-}
-.doc-code {
-  background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 14px;
-  font-family: monospace; font-size: 0.82rem; color: #d4d4d4;
-  margin: 8px 0 12px; overflow-x: auto; display: block;
-}
 kbd {
-  background: rgba(148,163,184,0.1); border: 1px solid rgba(148,163,184,0.25);
-  border-radius: 5px; padding: 2px 7px; font-size: 0.8rem; font-family: inherit;
-  color: var(--text);
+  background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+  padding: 2px 7px; border-radius: 4px; font-size: 0.82em;
+  font-family: monospace; color: var(--text);
 }
 
-/* Tip box */
-.tip-box {
-  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
-  background: rgba(14,165,233,0.07); border: 1px solid rgba(14,165,233,0.18);
-  border-radius: 9px; margin: 10px 0 14px; font-size: 0.86rem; line-height: 1.5;
-  color: var(--text-muted);
+.info-box {
+  background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 10px; padding: 12px 16px; margin: 14px 0;
+  font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;
 }
-.tip-icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
-.tip-box a { color: var(--accent); }
+.info-box strong { color: var(--text); }
 
-/* Feature overview cards */
-.feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 20px; }
-.feature-card {
-  display: flex; flex-direction: column; gap: 4px; padding: 14px;
-  background: rgba(15,23,42,0.5); border: 1px solid var(--border);
-  border-radius: 12px;
+/* Cloud tabs */
+.tabs-wrap { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.tab-block { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.tab-head {
+  padding: 8px 16px; font-size: 0.82rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
 }
-.feat-emoji { font-size: 1.4rem; }
-.feature-card strong { font-size: 0.88rem; color: var(--text); }
-.feature-card span { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+.tab-head.aws   { background: rgba(255,153,0,0.1);  color: #fb923c; }
+.tab-head.gcp   { background: rgba(66,133,244,0.1); color: #60a5fa; }
+.tab-head.azure { background: rgba(0,120,212,0.1);  color: #93c5fd; }
+.tab-body { padding: 10px 16px; }
+.tab-body ul, .tab-body ol { margin: 0; padding-left: 20px; }
+.tab-body li { font-size: 0.88rem; }
 
-/* Tables */
-.doc-table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; font-size: 0.85rem; }
-.doc-table th, .doc-table td { text-align: left; padding: 9px 12px; border: 1px solid var(--border); color: var(--text); vertical-align: top; line-height: 1.5; }
-.doc-table thead th { background: rgba(14,165,233,0.10); font-weight: 600; color: var(--accent); }
-.doc-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+/* Service chips */
+.service-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 16px; }
+.svc-chip {
+  background: rgba(255,153,0,0.1); border: 1px solid rgba(255,153,0,0.25);
+  color: #fb923c; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 500;
+}
+.svc-chip.gcp   { background: rgba(66,133,244,0.1); border-color: rgba(66,133,244,0.3); color: #60a5fa; }
+.svc-chip.azure { background: rgba(0,120,212,0.1);  border-color: rgba(0,120,212,0.3);  color: #93c5fd; }
 
-/* Light theme */
-:global(.theme-light) .doc-section code { background: rgba(0,0,0,0.07); }
-:global(.theme-light) .doc-code { background: #1e1e2e; }
-:global(.theme-light) .doc-table tbody tr:nth-child(even) { background: rgba(0,0,0,0.03); }
-:global(.theme-light) .feature-card { background: rgba(255,255,255,0.7); }
-:global(.theme-light) kbd { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.15); }
+/* Checks table */
+.checks-table { margin: 8px 0 20px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.checks-header, .checks-row {
+  display: grid; grid-template-columns: 2fr 3fr 80px;
+  padding: 7px 14px; gap: 12px; align-items: center; font-size: 0.83rem;
+}
+.checks-header { font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.03); color: var(--text-muted); }
+.checks-row { border-top: 1px solid var(--border); }
+.checks-row code { font-size: 0.78rem; }
+.checks-row span:nth-child(2) { color: var(--text-muted); }
+
+/* API table */
+.api-table { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 10px 0 20px; }
+.api-row { display: grid; grid-template-columns: 70px 2fr 3fr; gap: 12px; padding: 7px 14px; font-size: 0.83rem; align-items: center; }
+.api-row.header { font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.03); color: var(--text-muted); }
+.api-row + .api-row { border-top: 1px solid var(--border); }
+.method-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
+.method-badge.get  { background: rgba(16,185,129,0.15); color: #34d399; }
+.method-badge.post { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+.api-row span:last-child { color: var(--text-muted); }
+
+/* Severity badges */
+.sev-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; display: inline-block; }
+.sev-badge.critical { background: rgba(239,68,68,0.15); color: #f87171; }
+.sev-badge.high     { background: rgba(249,115,22,0.15); color: #fb923c; }
+.sev-badge.medium   { background: rgba(234,179,8,0.15);  color: #fbbf24; }
+.sev-badge.low      { background: rgba(59,130,246,0.15); color: #60a5fa; }
+
+/* Changelog */
+.changelog-entry { margin-bottom: 24px; }
+.cl-version {
+  font-size: 0.82rem; font-weight: 700; letter-spacing: 0.05em;
+  color: #a5b4fc; margin-bottom: 6px;
+}
+
+/* Floating back to contents button */
+.fab-contents {
+  position: fixed; bottom: 28px; right: 28px; z-index: 200;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 18px; border-radius: 30px;
+  background: rgba(99,102,241,0.9); color: #fff;
+  border: 1px solid rgba(99,102,241,0.6);
+  font-size: 0.84rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.fab-contents:hover { opacity: 0.88; transform: translateY(-2px); }
+.fab-fade-enter-active, .fab-fade-leave-active { transition: opacity 0.22s, transform 0.22s; }
+.fab-fade-enter-from, .fab-fade-leave-to { opacity: 0; transform: translateY(12px); }
+
+@media (max-width: 800px) {
+  .docs-toc { display: none; }
+  .docs-content { padding: 20px 16px; }
+  .checks-header, .checks-row { grid-template-columns: 1fr 1fr 60px; }
+  .api-row { grid-template-columns: 60px 1fr 1.5fr; }
+  .fab-contents { bottom: 16px; right: 16px; padding: 9px 14px; font-size: 0.8rem; }
+}
 </style>

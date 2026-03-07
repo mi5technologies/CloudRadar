@@ -904,6 +904,478 @@ export const RECOMMENDATIONS = {
     severity: 'high',
   },
 
+  // ── AWS Cognito ──────────────────────────────────────────────────────────
+  'cognito.no_mfa': {
+    cloud: 'aws',
+    title: 'Cognito User Pool — MFA Not Required',
+    what: 'The Cognito User Pool does not require multi-factor authentication.',
+    why: 'Without MFA, compromised passwords give attackers full access to user accounts.',
+    fix: [
+      'Set MFA to "Required" for the User Pool under Authentication → Multi-factor authentication.',
+      'Enable TOTP (Time-based OTP) or SMS as the second factor.',
+      'Enable Cognito Advanced Security Mode to detect and block anomalous sign-ins.',
+    ],
+    docs: 'https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa.html',
+    severity: 'high',
+  },
+  'cognito.no_advanced_security': {
+    cloud: 'aws',
+    title: 'Cognito Advanced Security Mode Disabled',
+    what: 'Cognito User Pool does not have Advanced Security Mode (ASM) enabled.',
+    why: 'Without ASM, Cognito cannot detect credential stuffing, account takeover, or anomalous sign-ins.',
+    fix: [
+      'Enable Advanced Security Mode on the User Pool (Audit mode first, then Enforcement mode).',
+      'Review the risk events in the Cognito console to tune user risk handling.',
+      'Configure notifications for high-risk sign-in attempts.',
+    ],
+    docs: 'https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pool-settings-advanced-security.html',
+    severity: 'medium',
+  },
+  'cognito.weak_password_policy': {
+    cloud: 'aws',
+    title: 'Cognito User Pool Has Weak Password Policy',
+    what: 'The User Pool password policy does not enforce minimum length, numbers, uppercase, or special characters.',
+    why: 'Weak passwords are easily brute-forced or guessed, leading to unauthorized account access.',
+    fix: [
+      'Require a minimum password length of 12 characters.',
+      'Enforce uppercase, lowercase, numbers, and special characters.',
+      'Set a temporary password expiry of 7 days or less.',
+    ],
+    docs: 'https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-policies.html',
+    severity: 'medium',
+  },
+
+  // ── AWS Config ────────────────────────────────────────────────────────────
+  'config.recorder_disabled': {
+    cloud: 'aws',
+    title: 'AWS Config Recorder Not Enabled',
+    what: 'AWS Config is not recording resource configuration changes in this region.',
+    why: 'Without Config, you lose visibility into configuration drift, change history, and compliance violations.',
+    fix: [
+      'Enable the AWS Config recorder and delivery channel for all resource types.',
+      'Enable Config for all regions, or use an Aggregator for multi-region visibility.',
+      'Create Config Rules to continuously evaluate compliance (e.g. s3-bucket-public-read-prohibited).',
+    ],
+    docs: 'https://docs.aws.amazon.com/config/latest/developerguide/getting-started.html',
+    severity: 'high',
+  },
+
+  // ── AWS Backup ────────────────────────────────────────────────────────────
+  'backup.no_plan': {
+    cloud: 'aws',
+    title: 'No AWS Backup Plan Configured',
+    what: 'Critical resources (RDS, DynamoDB, EFS, EC2) have no automated backup plan.',
+    why: 'Without backups, accidental deletion, ransomware, or corruption can cause permanent data loss.',
+    fix: [
+      'Create an AWS Backup plan with daily backups and 30-day retention minimum.',
+      'Add RDS, DynamoDB, EFS, EBS, and Aurora to the backup plan resource selection.',
+      'Enable Backup Vault Lock to protect backups from deletion.',
+      'Test restores quarterly to verify backup integrity.',
+    ],
+    docs: 'https://docs.aws.amazon.com/aws-backup/latest/devguide/creating-a-backup-plan.html',
+    severity: 'high',
+  },
+
+  // ── AWS Redshift ──────────────────────────────────────────────────────────
+  'redshift.publicly_accessible': {
+    cloud: 'aws',
+    title: 'Redshift Cluster Publicly Accessible',
+    what: 'The Redshift cluster is configured with PubliclyAccessible=true.',
+    why: 'Publicly accessible data warehouses expose sensitive analytics data to internet brute-force and SQL injection attacks.',
+    fix: [
+      'Set PubliclyAccessible to false on the cluster.',
+      'Deploy Redshift in a private subnet with no internet route.',
+      'Use VPC endpoints or a bastion host for administrative access.',
+    ],
+    docs: 'https://docs.aws.amazon.com/redshift/latest/mgmt/managing-clusters-vpc.html',
+    severity: 'critical',
+  },
+  'redshift.no_encryption': {
+    cloud: 'aws',
+    title: 'Redshift Cluster Not Encrypted',
+    what: 'The Redshift cluster is not encrypted at rest.',
+    why: 'Unencrypted data warehouses risk data exposure if storage is physically compromised or backups are accessed.',
+    fix: [
+      'Enable cluster encryption using AWS KMS (requires cluster restore from snapshot).',
+      'Use a customer-managed KMS key for enhanced key control.',
+      'Enable audit logging to track all SQL queries and user activity.',
+    ],
+    docs: 'https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-db-encryption.html',
+    severity: 'high',
+  },
+  'redshift.no_audit_logging': {
+    cloud: 'aws',
+    title: 'Redshift Audit Logging Disabled',
+    what: 'Audit logging is not enabled for the Redshift cluster.',
+    why: 'Without audit logs, you cannot detect unauthorized queries, data exfiltration, or insider threats.',
+    fix: [
+      'Enable audit logging in the Redshift cluster settings.',
+      'Set the S3 bucket destination and enable connection, user, and user activity logs.',
+      'Set bucket lifecycle rules to retain logs for at least 1 year.',
+    ],
+    docs: 'https://docs.aws.amazon.com/redshift/latest/mgmt/db-auditing.html',
+    severity: 'medium',
+  },
+
+  // ── AWS ElastiCache ───────────────────────────────────────────────────────
+  'elasticache.no_auth': {
+    cloud: 'aws',
+    title: 'ElastiCache Redis — No AUTH Token',
+    what: 'The ElastiCache Redis cluster has no AUTH token (password) configured.',
+    why: 'Unauthenticated Redis is trivially exploitable: attackers can read all cached data, execute Lua scripts, and write to disk.',
+    fix: [
+      'Enable AUTH token on the Redis replication group.',
+      'Restrict Security Group rules to only allow inbound access from application Security Groups.',
+      'Migrate to Redis 6+ and use Redis RBAC for fine-grained access control.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/auth.html',
+    severity: 'critical',
+  },
+  'elasticache.no_tls': {
+    cloud: 'aws',
+    title: 'ElastiCache — In-Transit Encryption Disabled',
+    what: 'In-transit encryption (TLS) is not enabled for the ElastiCache cluster.',
+    why: 'Data in transit between application and cache is visible to anyone with VPC network access.',
+    fix: [
+      'Enable in-transit encryption when creating a new replication group.',
+      'Update application clients to use TLS connections.',
+      'Enable at-rest encryption simultaneously for defence in depth.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/in-transit-encryption.html',
+    severity: 'high',
+  },
+
+  // ── AWS OpenSearch ────────────────────────────────────────────────────────
+  'opensearch.public_endpoint': {
+    cloud: 'aws',
+    title: 'OpenSearch Domain Has Public Endpoint',
+    what: 'The OpenSearch/Elasticsearch domain is accessible from the public internet.',
+    why: 'Publicly accessible search clusters are frequently targeted for data theft and cryptomining.',
+    fix: [
+      'Move the domain to a VPC using VPC access mode (requires a new domain).',
+      'If public access is required, enable fine-grained access control and require authentication.',
+      'Apply a restrictive resource-based policy limiting access to known IP ranges or IAM principals.',
+    ],
+    docs: 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/vpc.html',
+    severity: 'critical',
+  },
+  'opensearch.no_encryption_at_rest': {
+    cloud: 'aws',
+    title: 'OpenSearch Domain Not Encrypted at Rest',
+    what: 'Encryption at rest is not enabled for the OpenSearch domain.',
+    why: 'Search indices often contain sensitive data; unencrypted storage risks exposure if storage is compromised.',
+    fix: [
+      'Enable encryption at rest when creating the domain (cannot be enabled on existing domains).',
+      'Use a KMS customer-managed key for enhanced key control and audit logs.',
+      'Enable node-to-node encryption for defence in depth.',
+    ],
+    docs: 'https://docs.aws.amazon.com/opensearch-service/latest/developerguide/encryption-at-rest.html',
+    severity: 'high',
+  },
+
+  // ── AWS Route 53 ──────────────────────────────────────────────────────────
+  'route53.dangling_dns': {
+    cloud: 'aws',
+    title: 'Route 53 — Dangling DNS Record',
+    what: 'A DNS record points to a resource (e.g. ELB, S3 bucket, CloudFront) that no longer exists.',
+    why: 'Attackers can claim the deleted resource and hijack the DNS record to serve malicious content or harvest credentials.',
+    fix: [
+      'Audit all Route 53 records and verify each target resource still exists.',
+      'Delete CNAME/A/AAAA records that point to deprovisioned resources.',
+      'Use Route 53 Alias records which automatically resolve to AWS resources.',
+      'Automate DNS cleanup in your deprovisioning pipeline (IaC teardown).',
+    ],
+    docs: 'https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/troubleshooting-alias-records.html',
+    severity: 'high',
+  },
+  'route53.zone_transfer': {
+    cloud: 'aws',
+    title: 'Route 53 Zone Transfer Allowed',
+    what: 'The hosted zone allows unrestricted AXFR (zone transfer) requests.',
+    why: 'Zone transfers expose all DNS records to attackers, revealing internal infrastructure topology and potential targets.',
+    fix: [
+      'Route 53 does not directly expose zone transfer; ensure private hosted zones are not accessible from public zones.',
+      'Restrict Route 53 hosted zone access using resource policies.',
+      'Avoid publishing internal hostnames in public hosted zones.',
+    ],
+    docs: 'https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-considerations.html',
+    severity: 'medium',
+  },
+
+  // ── AWS Secrets Manager ───────────────────────────────────────────────────
+  'secretsmanager.no_rotation': {
+    cloud: 'aws',
+    title: 'Secrets Manager — Rotation Disabled',
+    what: 'Automatic secret rotation is not configured for this secret.',
+    why: 'Long-lived, non-rotated credentials increase the blast radius of a secret compromise.',
+    fix: [
+      'Enable automatic rotation using an AWS Lambda rotation function.',
+      'Use managed rotation for supported services (RDS, Aurora, Redshift).',
+      'Set rotation frequency to 30–90 days as per security policy.',
+    ],
+    docs: 'https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets.html',
+    severity: 'high',
+  },
+  'secretsmanager.stale_secret': {
+    cloud: 'aws',
+    title: 'Secrets Manager — Secret Not Accessed in 180+ Days',
+    what: 'A secret has not been accessed in over 180 days.',
+    why: 'Stale, unused secrets are forgotten credentials that can be compromised without detection.',
+    fix: [
+      'Verify whether the secret is still in use by any application or Lambda function.',
+      'Delete unused secrets to reduce your attack surface.',
+      'Enable resource-based policies to restrict access to only intended IAM principals.',
+    ],
+    docs: 'https://docs.aws.amazon.com/secretsmanager/latest/userguide/best-practices.html',
+    severity: 'medium',
+  },
+
+  // ── AWS CodeBuild ─────────────────────────────────────────────────────────
+  'codebuild.no_logging': {
+    cloud: 'aws',
+    title: 'CodeBuild Project — Logging Disabled',
+    what: 'CloudWatch or S3 logging is not configured for the CodeBuild project.',
+    why: 'Without build logs, you cannot audit what ran in your CI/CD pipeline, making supply-chain attack detection impossible.',
+    fix: [
+      'Enable CloudWatch Logs for the CodeBuild project.',
+      'Optionally add S3 log export for long-term retention.',
+      'Create CloudWatch alarms for failed builds and privileged container usage.',
+    ],
+    docs: 'https://docs.aws.amazon.com/codebuild/latest/userguide/monitoring-builds.html',
+    severity: 'medium',
+  },
+  'codebuild.privileged_mode': {
+    cloud: 'aws',
+    title: 'CodeBuild Project — Privileged Mode Enabled',
+    what: 'The CodeBuild project has privileged mode enabled (runs as root with Docker socket access).',
+    why: 'Privileged containers can escape the sandbox and access the host system; untrusted build code could compromise the builder.',
+    fix: [
+      'Disable privileged mode unless building Docker images (required for Docker-in-Docker).',
+      'Use rootless Docker build tools (Kaniko, Podman) instead of Docker-in-Docker.',
+      'Restrict privileged builds to a separate, isolated build environment.',
+    ],
+    docs: 'https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-compute-types.html',
+    severity: 'high',
+  },
+
+  // ── AWS CloudFormation ────────────────────────────────────────────────────
+  'cloudformation.no_termination_protection': {
+    cloud: 'aws',
+    title: 'CloudFormation Stack — Termination Protection Disabled',
+    what: 'Stack termination protection is not enabled, allowing accidental or malicious stack deletion.',
+    why: 'Without termination protection, a single CLI command or misconfigured pipeline can destroy all stack resources.',
+    fix: [
+      'Enable termination protection on all production stacks.',
+      'Use Service Control Policies (SCPs) to deny cloudformation:DeleteStack in production accounts.',
+      'Implement stack drift detection to catch manual changes.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-protect-stacks.html',
+    severity: 'medium',
+  },
+
+  // ── GCP BigQuery ──────────────────────────────────────────────────────────
+  'gcp.bigquery.public_dataset': {
+    cloud: 'gcp',
+    title: 'BigQuery Dataset Publicly Accessible',
+    what: 'The BigQuery dataset has IAM bindings granting allUsers or allAuthenticatedUsers access.',
+    why: 'Public BigQuery datasets expose sensitive analytics data to the entire internet or all Google account holders.',
+    fix: [
+      'Remove allUsers and allAuthenticatedUsers from the dataset IAM policy.',
+      'Grant access only to specific service accounts and user groups.',
+      'Enable VPC Service Controls for BigQuery to restrict access by network.',
+      'Enable BigQuery audit logs (data access) to detect unauthorized reads.',
+    ],
+    docs: 'https://cloud.google.com/bigquery/docs/access-control',
+    severity: 'critical',
+  },
+  'gcp.bigquery.no_cmek': {
+    cloud: 'gcp',
+    title: 'BigQuery Dataset Not Using CMEK',
+    what: 'The dataset uses Google-managed encryption keys instead of customer-managed keys.',
+    why: 'Google-managed keys provide no customer control over key revocation or audit trails.',
+    fix: [
+      'Create a Cloud KMS key ring and key for BigQuery encryption.',
+      'Set the default encryption configuration on the dataset to use the CMEK.',
+      'Ensure the BigQuery service account has `cloudkms.cryptoKeyEncrypterDecrypter` role on the key.',
+    ],
+    docs: 'https://cloud.google.com/bigquery/docs/customer-managed-encryption',
+    severity: 'medium',
+  },
+
+  // ── GCP Cloud DNS ─────────────────────────────────────────────────────────
+  'gcp.dns.dnssec_disabled': {
+    cloud: 'gcp',
+    title: 'Cloud DNS — DNSSEC Disabled',
+    what: 'DNSSEC is not enabled on the Cloud DNS managed zone.',
+    why: 'Without DNSSEC, the domain is vulnerable to DNS spoofing and cache poisoning attacks.',
+    fix: [
+      'Enable DNSSEC on the managed zone in Cloud DNS.',
+      'Update the domain registrar DS records with the Cloud DNS-generated key.',
+      'Use the "Transfer" state to coordinate DNSSEC key activation safely.',
+    ],
+    docs: 'https://cloud.google.com/dns/docs/dnssec-config',
+    severity: 'medium',
+  },
+
+  // ── GCP Secret Manager ────────────────────────────────────────────────────
+  'gcp.secretmanager.no_rotation': {
+    cloud: 'gcp',
+    title: 'Secret Manager — No Rotation Policy',
+    what: 'The secret does not have an automatic rotation policy configured.',
+    why: 'Long-lived secrets that are never rotated increase the window of opportunity for attackers using stolen credentials.',
+    fix: [
+      'Configure a rotation schedule on the secret (e.g. every 90 days).',
+      'Create a Cloud Scheduler job and Cloud Function to handle the rotation logic.',
+      'Subscribe to the `SECRET_ROTATE` Pub/Sub topic to trigger rotation automation.',
+    ],
+    docs: 'https://cloud.google.com/secret-manager/docs/rotation-recommendations',
+    severity: 'medium',
+  },
+
+  // ── GCP Cloud Run ─────────────────────────────────────────────────────────
+  'gcp.cloudrun.public_access': {
+    cloud: 'gcp',
+    title: 'Cloud Run Service — Unauthenticated Invocation Allowed',
+    what: 'The Cloud Run service allows allUsers to invoke it without authentication.',
+    why: 'Unauthenticated public services are exposed to abuse, scraping, and denial-of-wallet attacks.',
+    fix: [
+      'Remove the `roles/run.invoker` binding for allUsers from the IAM policy.',
+      'Require authentication using Google identity tokens or Cloud IAP.',
+      'Use a load balancer with Cloud Armor security policy for public-facing services.',
+    ],
+    docs: 'https://cloud.google.com/run/docs/securing/managing-access',
+    severity: 'high',
+  },
+
+  // ── Azure App Service ─────────────────────────────────────────────────────
+  'azure.appservice.http_allowed': {
+    cloud: 'azure',
+    title: 'App Service — HTTP Not Redirected to HTTPS',
+    what: 'The web app allows plain HTTP connections without redirecting to HTTPS.',
+    why: 'Plaintext HTTP exposes session tokens, credentials, and sensitive data to network interception.',
+    fix: [
+      'Enable "HTTPS Only" in the App Service TLS/SSL settings.',
+      'Set the minimum TLS version to 1.2.',
+      'Configure App Service to redirect HTTP to HTTPS using a custom domain rule.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/app-service/configure-ssl-bindings#enforce-https',
+    severity: 'high',
+  },
+  'azure.appservice.remote_debugging': {
+    cloud: 'azure',
+    title: 'App Service — Remote Debugging Enabled',
+    what: 'Remote debugging is enabled on the App Service.',
+    why: 'Remote debugging opens a debugging port that can be used for unauthorized code execution and data access.',
+    fix: [
+      'Disable remote debugging in the App Service Configuration → General settings.',
+      'Remote debugging auto-disables after 48 hours; do not re-enable in production.',
+      'Use Application Insights snapshot debugger as a safer alternative.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/app-service/troubleshoot-dotnet-visual-studio',
+    severity: 'high',
+  },
+  'azure.appservice.no_managed_identity': {
+    cloud: 'azure',
+    title: 'App Service — No Managed Identity',
+    what: 'The App Service does not use a system-assigned or user-assigned managed identity.',
+    why: 'Without managed identity, applications use hardcoded credentials (connection strings, API keys) that can be leaked.',
+    fix: [
+      'Enable a system-assigned managed identity on the App Service.',
+      'Grant the identity only the permissions it needs (e.g. Key Vault Secrets User).',
+      'Replace all connection strings and API keys with managed identity authentication.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity',
+    severity: 'medium',
+  },
+
+  // ── Azure Redis ───────────────────────────────────────────────────────────
+  'azure.redis.non_ssl_port': {
+    cloud: 'azure',
+    title: 'Azure Cache for Redis — Non-SSL Port Enabled',
+    what: 'The Redis cache has the non-SSL port (6379) enabled.',
+    why: 'Data transmitted over unencrypted Redis connections can be intercepted within the network.',
+    fix: [
+      'Disable the non-SSL port in the Azure Cache for Redis configuration.',
+      'Ensure all application clients connect using the SSL port (6380).',
+      'Configure the cache to allow only TLS 1.2 or higher.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-configure#access-ports',
+    severity: 'high',
+  },
+
+  // ── Azure Log Analytics ───────────────────────────────────────────────────
+  'azure.loganalytics.short_retention': {
+    cloud: 'azure',
+    title: 'Log Analytics Workspace — Short Retention Period',
+    what: 'The Log Analytics workspace retains data for less than 90 days.',
+    why: 'Short retention periods mean forensic evidence and audit trails are lost before security investigations can complete.',
+    fix: [
+      'Set data retention to at least 90 days (CIS recommends 1 year for audit logs).',
+      'Configure archive tier for older logs at lower cost.',
+      'Export critical logs to immutable Azure Blob Storage for long-term compliance.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-retention-archive',
+    severity: 'medium',
+  },
+
+  // ── Azure Cosmos DB ───────────────────────────────────────────────────────
+  'azure.cosmosdb.public_endpoint': {
+    cloud: 'azure',
+    title: 'Cosmos DB — Public Network Access Enabled',
+    what: 'The Cosmos DB account allows access from all public networks.',
+    why: 'Unrestricted network access exposes the database endpoint to brute-force and credential stuffing from the internet.',
+    fix: [
+      'Disable public network access in Cosmos DB networking settings.',
+      'Use Private Endpoint to restrict access to your VNet.',
+      'If public access is needed, configure IP allowlisting to known IP ranges only.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-configure-private-endpoints',
+    severity: 'high',
+  },
+  'azure.cosmosdb.local_auth': {
+    cloud: 'azure',
+    title: 'Cosmos DB — Local Authentication Not Disabled',
+    what: 'The Cosmos DB account allows key-based (local) authentication in addition to Azure AD.',
+    why: 'Key-based authentication credentials are long-lived and not subject to Azure AD conditional access policies.',
+    fix: [
+      'Set `disableLocalAuth: true` on the Cosmos DB account to enforce Azure AD-only authentication.',
+      'Assign the `Cosmos DB Built-in Data Contributor` role to the required service principals.',
+      'Rotate and then revoke all existing Cosmos DB keys.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-setup-rbac',
+    severity: 'high',
+  },
+
+  // ── Azure Service Bus ─────────────────────────────────────────────────────
+  'azure.servicebus.no_cmk': {
+    cloud: 'azure',
+    title: 'Service Bus — No Customer-Managed Key',
+    what: 'The Service Bus namespace uses Microsoft-managed keys for encryption at rest.',
+    why: 'Without CMK, you have no control over key rotation, revocation, or audit trails for encryption operations.',
+    fix: [
+      'Create a Key Vault key and grant the Service Bus namespace managed identity access.',
+      'Configure CMK encryption on the Service Bus namespace (Premium tier required).',
+      'Enable soft delete and purge protection on the Key Vault.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/service-bus-messaging/configure-customer-managed-key',
+    severity: 'medium',
+  },
+
+  // ── Azure ACR ─────────────────────────────────────────────────────────────
+  'azure.acr.admin_enabled': {
+    cloud: 'azure',
+    title: 'Container Registry — Admin Account Enabled',
+    what: 'The Azure Container Registry has the built-in admin account enabled.',
+    why: 'The admin account uses a shared password that cannot be scoped, audited, or revoked per-user.',
+    fix: [
+      'Disable the admin account in the ACR Access keys settings.',
+      'Use Azure AD authentication with AcrPull/AcrPush role assignments instead.',
+      'Assign managed identities to services pulling images from ACR.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication',
+    severity: 'high',
+  },
+
   // ── Azure AKS ────────────────────────────────────────────────────────────
   'azure.aks.public_endpoint': {
     cloud: 'azure',
@@ -931,24 +1403,150 @@ export const RECOMMENDATIONS = {
     docs: 'https://learn.microsoft.com/en-us/azure/aks/manage-azure-rbac',
     severity: 'high',
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CloudFront
+  // ─────────────────────────────────────────────────────────────────────────
+  'cf.http_allowed': {
+    cloud: 'aws',
+    title: 'CloudFront Distribution Allows Plain HTTP',
+    quickWin: true,
+    what: 'One or more CloudFront cache behaviours are configured with ViewerProtocolPolicy=allow-all, meaning content can be served over unencrypted HTTP.',
+    why: 'Traffic served over HTTP is susceptible to man-in-the-middle (MITM) attacks, eavesdropping, and content injection. Modern browsers and compliance standards (PCI-DSS, HIPAA) require HTTPS everywhere.',
+    fix: [
+      'In the CloudFront console, open the distribution and edit every cache behaviour.',
+      'Set "Viewer Protocol Policy" to "Redirect HTTP to HTTPS" (preferred) or "HTTPS Only".',
+      'Verify the origin also uses HTTPS to prevent the origin leg being unencrypted.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https.html',
+    severity: 'high',
+  },
+  'cf.no_waf': {
+    cloud: 'aws',
+    title: 'CloudFront Distribution Has No WAF Web ACL',
+    quickWin: false,
+    what: 'No AWS WAF Web ACL is associated with this CloudFront distribution, leaving it unprotected against common web exploits.',
+    why: 'Without WAF, the distribution is exposed to SQL injection, XSS, bad bots, DDoS layer-7 attacks, and scrapers. WAF managed rules block OWASP Top 10 attacks automatically.',
+    fix: [
+      'Create a WAFv2 Web ACL in us-east-1 (required for CloudFront).',
+      'Add the AWS Managed Rules group "AWSManagedRulesCommonRuleSet" as a first baseline rule.',
+      'Add "AWSManagedRulesBotControlRuleSet" if bot protection is needed.',
+      'Associate the Web ACL with the CloudFront distribution under "Security → WAF".',
+      'Set the default action to "Block" and tune rules for false positives.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-awswaf.html',
+    severity: 'high',
+  },
+  'cf.missing_security_headers': {
+    cloud: 'aws',
+    title: 'CloudFront Distribution Missing Security Response Headers',
+    quickWin: true,
+    what: 'The distribution does not return HSTS, X-Frame-Options, X-Content-Type-Options, or other security headers to browsers.',
+    why: 'Missing security headers expose users to clickjacking (no X-Frame-Options), MIME-sniffing attacks (no X-Content-Type-Options), and protocol downgrade attacks (no HSTS). These are required by PCI-DSS and common secure coding standards.',
+    fix: [
+      'In CloudFront, go to Policies → Response Headers Policies and create a new policy.',
+      'Enable "Strict-Transport-Security" with max-age=31536000 and includeSubDomains.',
+      'Enable "X-Frame-Options: DENY" (or SAMEORIGIN if embedding is needed).',
+      'Enable "X-Content-Type-Options: nosniff".',
+      'Enable "X-XSS-Protection: 1; mode=block" for legacy browser support.',
+      'Attach the policy to all cache behaviours in the distribution.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/adding-response-headers.html',
+    severity: 'medium',
+  },
+  'cf.no_hsts': {
+    cloud: 'aws',
+    title: 'CloudFront HSTS Header Not Configured',
+    quickWin: true,
+    what: 'A response headers policy exists but Strict-Transport-Security (HSTS) is not enabled.',
+    why: 'Without HSTS, attackers can strip HTTPS connections to plain HTTP (SSL-stripping attacks) even when the site supports HTTPS. HSTS instructs browsers to always use HTTPS for the domain.',
+    fix: [
+      'Edit the existing Response Headers Policy for this distribution.',
+      'Under Security Headers, enable Strict-Transport-Security.',
+      'Set max-age to at least 31536000 (1 year) and enable includeSubDomains.',
+      'Once confident, consider adding the domain to the HSTS preload list.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/adding-response-headers.html',
+    severity: 'medium',
+  },
+  'cf.outdated_tls': {
+    cloud: 'aws',
+    title: 'CloudFront Distribution Uses Outdated TLS Version',
+    quickWin: true,
+    what: 'The distribution\'s minimum TLS version is set to TLS 1.0 or TLS 1.1, which are deprecated protocols with known vulnerabilities.',
+    why: 'TLS 1.0 and 1.1 are susceptible to POODLE, BEAST, and CRIME attacks. PCI-DSS 3.2+ mandates TLS 1.2 minimum. Old TLS versions allow downgrades to weaker cipher suites.',
+    fix: [
+      'Open the CloudFront distribution → Security → Security Policy.',
+      'Change the Security Policy (Minimum TLS Version) to TLSv1.2_2021.',
+      'Verify that all clients connecting to the distribution support TLS 1.2 (virtually all modern browsers do).',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/secure-connections-supported-viewer-protocols-ciphers.html',
+    severity: 'high',
+  },
+  'cf.s3_origin_no_oac': {
+    cloud: 'aws',
+    title: 'CloudFront S3 Origin Without Origin Access Control',
+    quickWin: false,
+    what: 'S3 origins in this distribution are not protected by an Origin Access Control (OAC) or Origin Access Identity (OAI). The S3 bucket may be directly accessible from the internet, bypassing CloudFront.',
+    why: 'Without OAC/OAI, the S3 bucket must be publicly readable to serve content, exposing it to direct access that bypasses CloudFront WAF rules, rate limiting, and geo-restrictions. This also leaks the underlying S3 endpoint.',
+    fix: [
+      'In CloudFront, create an Origin Access Control (OAC) — the modern replacement for OAI.',
+      'Associate the OAC with the S3 origin in the distribution.',
+      'Update the S3 bucket policy to only grant s3:GetObject to the CloudFront OAC principal (aws:SourceArn).',
+      'Remove any public-read ACLs or bucket policies from the S3 bucket.',
+      'Block public access on the S3 bucket using Block Public Access settings.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html',
+    severity: 'high',
+  },
+  'cf.logging_disabled': {
+    cloud: 'aws',
+    title: 'CloudFront Access Logging Disabled',
+    quickWin: true,
+    what: 'Access logging is not configured for this CloudFront distribution, meaning no record of viewer requests is captured.',
+    why: 'Without access logs, incident investigation, abuse detection, bot analysis, and compliance reporting (PCI-DSS requires audit trails) are impossible. Logs are also required for threat intelligence correlation.',
+    fix: [
+      'Create or designate an S3 bucket to store CloudFront logs (ideally a dedicated logging bucket with lifecycle rules).',
+      'In the distribution settings, enable Access Logging and set the log destination S3 bucket and optional prefix.',
+      'Consider enabling real-time logs via Kinesis Data Streams for immediate analysis.',
+      'Set up S3 lifecycle rules to archive logs to Glacier after 90 days and delete after 1 year.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html',
+    severity: 'medium',
+  },
+  'cf.no_geo_restriction': {
+    cloud: 'aws',
+    title: 'CloudFront Distribution Has No Geo-Restriction',
+    quickWin: true,
+    what: 'This CloudFront distribution serves content globally with no geographic restrictions applied.',
+    why: 'If the application is intended for a specific region, serving content globally increases the attack surface from high-risk jurisdictions and may violate data sovereignty regulations (GDPR, data residency requirements).',
+    fix: [
+      'Review the business requirement: does this application need global access?',
+      'If access should be limited, configure a CloudFront Geo-Restriction allowlist for permitted countries.',
+      'Alternatively, use AWS WAF geographic match conditions for more granular per-path control.',
+      'For compliance-sensitive data, verify geo-restrictions align with data residency obligations.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/georestrictions.html',
+    severity: 'low',
+  },
 }
 
 // ─── Per-cloud top recommendations used on Dashboard ────────────────────────
 export const TOP_RECS_BY_CLOUD = {
   aws: {
-    critical: ['sg.ssh_open', 's3.public_access', 'iam.wildcard_action', 'cloudtrail.disabled', 'lambda.hardcoded_secret'],
-    high:     ['s3.no_encryption', 'rds.publicly_accessible', 'iam.unused_keys', 'guardduty.disabled', 'eks.public_endpoint'],
-    medium:   ['kms.no_rotation', 'vpc.no_flow_logs', 's3.no_versioning', 'alb.no_waf'],
+    critical: ['sg.ssh_open', 's3.public_access', 'iam.wildcard_action', 'cloudtrail.disabled', 'lambda.hardcoded_secret', 'elasticache.no_auth', 'opensearch.public_endpoint', 'redshift.publicly_accessible'],
+    high:     ['s3.no_encryption', 'rds.publicly_accessible', 'iam.unused_keys', 'guardduty.disabled', 'eks.public_endpoint', 'cognito.no_mfa', 'config.recorder_disabled', 'backup.no_plan', 'secretsmanager.no_rotation', 'codebuild.privileged_mode', 'elasticache.no_tls', 'cf.no_waf', 'cf.http_allowed', 'cf.outdated_tls', 'cf.s3_origin_no_oac'],
+    medium:   ['kms.no_rotation', 'vpc.no_flow_logs', 's3.no_versioning', 'alb.no_waf', 'cognito.no_advanced_security', 'route53.dangling_dns', 'cloudformation.no_termination_protection', 'codebuild.no_logging', 'cf.missing_security_headers', 'cf.no_hsts', 'cf.logging_disabled'],
   },
   gcp: {
-    critical: ['gcp.firewall.ssh_open', 'gcp.storage.public_bucket', 'gcp.iam.no_mfa', 'gcp.logging.disabled', 'gcp.sql.public_ip'],
-    high:     ['gcp.iam.service_account_key', 'gcp.iam.primitive_roles', 'gcp.gke.public_endpoint', 'gcp.compute.os_not_patched', 'gcp.monitoring.no_alerts'],
-    medium:   ['gcp.kms.no_rotation', 'gcp.vpc.no_flow_logs', 'gcp.storage.no_versioning'],
+    critical: ['gcp.firewall.ssh_open', 'gcp.storage.public_bucket', 'gcp.iam.no_mfa', 'gcp.logging.disabled', 'gcp.sql.public_ip', 'gcp.bigquery.public_dataset'],
+    high:     ['gcp.iam.service_account_key', 'gcp.iam.primitive_roles', 'gcp.gke.public_endpoint', 'gcp.compute.os_not_patched', 'gcp.monitoring.no_alerts', 'gcp.cloudrun.public_access'],
+    medium:   ['gcp.kms.no_rotation', 'gcp.vpc.no_flow_logs', 'gcp.storage.no_versioning', 'gcp.bigquery.no_cmek', 'gcp.dns.dnssec_disabled', 'gcp.secretmanager.no_rotation'],
   },
   azure: {
-    critical: ['azure.nsg.ssh_open', 'azure.storage.public_blob', 'azure.iam.no_mfa', 'azure.iam.excessive_permissions', 'azure.sql.public_access'],
-    high:     ['azure.vm.no_disk_encryption', 'azure.vm.no_mde', 'azure.storage.no_https', 'azure.sql.no_auditing', 'azure.keyvault.no_expiry'],
-    medium:   ['azure.storage.no_cmk', 'azure.sql.no_tde', 'azure.monitor.no_logs'],
+    critical: ['azure.nsg.ssh_open', 'azure.storage.public_blob', 'azure.iam.no_mfa', 'azure.iam.excessive_permissions', 'azure.sql.public_access', 'azure.cosmosdb.public_endpoint'],
+    high:     ['azure.vm.no_disk_encryption', 'azure.vm.no_mde', 'azure.storage.no_https', 'azure.sql.no_auditing', 'azure.keyvault.no_expiry', 'azure.acr.admin_enabled', 'azure.redis.non_ssl_port', 'azure.appservice.http_allowed', 'azure.cosmosdb.local_auth'],
+    medium:   ['azure.storage.no_cmk', 'azure.sql.no_tde', 'azure.monitor.no_logs', 'azure.loganalytics.short_retention', 'azure.servicebus.no_cmk', 'azure.appservice.no_managed_identity'],
   },
 }
 

@@ -25,6 +25,15 @@
           <input v-model="search" placeholder="Filter by action, user, detail…" class="filter-input" />
         </div>
         <div class="filter-group">
+          <label>Cloud</label>
+          <select v-model="filterCloud" class="filter-select">
+            <option value="">All clouds</option>
+            <option value="aws">AWS</option>
+            <option value="gcp">Google Cloud</option>
+            <option value="azure">Azure</option>
+          </select>
+        </div>
+        <div class="filter-group">
           <label>Status</label>
           <select v-model="filterStatus" class="filter-select">
             <option value="">All</option>
@@ -54,6 +63,7 @@
             <tr>
               <th>Timestamp</th>
               <th>User</th>
+              <th>Cloud</th>
               <th>Action</th>
               <th>Detail</th>
               <th>Status</th>
@@ -70,6 +80,13 @@
                   {{ initials(log.user) }}
                 </span>
                 <span class="user-name">{{ log.user }}</span>
+              </td>
+              <td class="td-cloud">
+                <span v-if="log.cloud" class="cloud-chip" :class="'cc-' + log.cloud" :title="log.cloud.toUpperCase()">
+                  <span v-html="cloudIcon(log.cloud)"></span>
+                  {{ log.cloud.toUpperCase() }}
+                </span>
+                <span v-else class="cloud-chip cc-none">—</span>
               </td>
               <td class="td-action">
                 <span class="action-tag">{{ log.action }}</span>
@@ -115,12 +132,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { getAuditLogs, clearAuditLogs } from '../utils/auditLog'
 
-const logs = ref([])
-const search = ref('')
+const CLOUD_ICONS = {
+  aws:   `<svg width="12" height="8" viewBox="0 0 80 48" fill="none"><path d="M22.9 32.2c-4.5 2.4-9.4 3.7-14.5 3.7C3.8 35.9 0 32.1 0 27.3c0-5.3 4.5-9.6 10.7-10.2-.3-1.1-.5-2.3-.5-3.6C10.2 6.1 15.9 1 22.9 1c3.4 0 6.5 1.2 8.9 3.2 2.2-4.3 6.7-7.2 11.7-7.2 4.3 0 8.2 1.9 10.8 5 1.9-.7 3.9-1.1 6-1.1C68 1 75 8 75 16.8c0 1.8-.3 3.5-.8 5.1C77.4 23.5 80 27 80 31.1 80 36.8 75.3 41 69.2 41H22.9z" fill="#FF9900"/></svg>`,
+  gcp:   `<svg width="12" height="12" viewBox="0 0 48 48"><path fill="#4285F4" d="M30.2 17.8H24v4.2h6.9c-.7 3.7-4 6.5-7.9 6.5-4.5 0-8.2-3.7-8.2-8.2s3.7-8.2 8.2-8.2c2.1 0 4 .8 5.5 2.1l3-3C29 8.6 26.7 7.5 24 7.5c-7.5 0-13.5 6-13.5 13.5S16.5 34.5 24 34.5c7.2 0 12.8-5 12.8-13.5 0-.8-.1-1.5-.2-2.2l-6.4-1z"/></svg>`,
+  azure: `<svg width="12" height="12" viewBox="0 0 48 48"><path fill="#0078D4" d="M27 4L13 28l9 5-7 7h16l7-36z"/><path fill="#50E6FF" d="M27 4L4 34l9-1 7-7-3-5z"/></svg>`,
+}
+function cloudIcon(id) { return CLOUD_ICONS[id] || '' }
+
+const logs        = ref([])
+const search      = ref('')
 const filterStatus = ref('')
-const filterUser = ref('')
-const page = ref(1)
-const PAGE_SIZE = 25
+const filterUser  = ref('')
+const filterCloud = ref('')
+const page        = ref(1)
+const PAGE_SIZE   = 25
 const showConfirm = ref(false)
 
 onMounted(() => {
@@ -132,8 +157,9 @@ const uniqueUsers = computed(() => [...new Set(logs.value.map(l => l.user))])
 const filteredLogs = computed(() => {
   const s = search.value.toLowerCase()
   return logs.value.filter(l => {
+    if (filterCloud.value  && (l.cloud || '') !== filterCloud.value) return false
     if (filterStatus.value && l.status !== filterStatus.value) return false
-    if (filterUser.value && l.user !== filterUser.value) return false
+    if (filterUser.value   && l.user !== filterUser.value) return false
     if (s && !l.action.toLowerCase().includes(s) && !l.user.toLowerCase().includes(s) && !(l.detail || '').toLowerCase().includes(s)) return false
     return true
   })
@@ -303,7 +329,16 @@ function exportCsv() {
   font-size: 0.8rem;
   font-weight: 600;
 }
-.td-detail { color: var(--text-muted); font-size: 0.82rem; max-width: 280px; word-break: break-word; }
+.td-cloud { white-space: nowrap; }
+.cloud-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
+  border-radius: 5px; font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+}
+.cc-aws   { background: rgba(255,153,0,0.1);  color: #fb923c; }
+.cc-gcp   { background: rgba(66,133,244,0.1); color: #60a5fa; }
+.cc-azure { background: rgba(0,120,212,0.1);  color: #93c5fd; }
+.cc-none  { color: var(--text-muted); background: none; }
+.td-detail { color: var(--text-muted); font-size: 0.82rem; max-width: 260px; word-break: break-word; }
 .status-pill {
   display: inline-block;
   padding: 3px 10px;

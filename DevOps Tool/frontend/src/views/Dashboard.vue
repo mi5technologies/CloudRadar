@@ -115,31 +115,96 @@
       </div>
     </div>
 
-    <!-- Top recommendations -->
+    <!-- Remediation Progress Panel -->
+    <div class="card remediation-panel" v-if="lastScan">
+      <div class="card-head">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:6px;"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Remediation Progress
+        </h2>
+        <router-link to="/findings" class="btn btn-secondary btn-sm-text">Manage fixes →</router-link>
+      </div>
+      <div class="rem-progress-row">
+        <div class="rem-progress-bar-wrap">
+          <div class="rem-progress-bar" :style="{ width: remediationScore.percentage + '%', background: remProgressColor }"></div>
+        </div>
+        <span class="rem-progress-pct" :style="{ color: remProgressColor }">{{ remediationScore.percentage }}%</span>
+      </div>
+      <div class="rem-stats">
+        <span class="rem-stat rem-stat-fixed">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          {{ remediationScore.resolved }} fixed
+        </span>
+        <span class="rem-stat rem-stat-open">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          {{ remediationScore.remaining }} remaining
+        </span>
+        <span class="rem-stat-score" :style="{ color: remProgressColor }">Score: {{ remediationScore.score }}/100</span>
+      </div>
+      <p class="muted" style="font-size:0.78rem;margin-top:6px;">Mark findings as fixed in the <router-link to="/findings" style="color:var(--accent);text-decoration:none;">Findings page</router-link> to watch your risk score drop.</p>
+    </div>
+
+    <!-- Top recommendations — prioritised by actual findings -->
     <div class="card" v-if="topRecs.length">
       <div class="card-head">
         <h2>
           <span class="cloud-badge-inline" :class="'cloud-' + selectedCloud">{{ cloudLabel }}</span>
           Top recommendations
+          <span class="rec-source-label" v-if="hasActualFindings">· ranked by your scan data</span>
         </h2>
         <router-link to="/findings" class="btn btn-secondary btn-sm-text">View all findings →</router-link>
       </div>
-      <p class="muted" style="margin-bottom:14px;">Highest-priority actions for your {{ cloudLabel }} environment based on the latest scan.</p>
+      <p class="muted" style="margin-bottom:14px;">
+        <template v-if="hasActualFindings">Sorted by severity × number of affected resources from your latest scan.</template>
+        <template v-else>Highest-priority actions for your {{ cloudLabel }} environment.</template>
+      </p>
       <div class="recs-list">
-        <div v-for="(rec, i) in topRecs" :key="i" class="rec-item" :class="'rec-sev-' + rec.severity">
+        <div v-for="(rec, i) in topRecs" :key="i" class="rec-item" :class="'rec-sev-' + (rec.severity || rec.recommendation?.severity)">
           <div class="rec-num">{{ i + 1 }}</div>
           <div class="rec-content">
             <div class="rec-top">
               <span class="rec-title">{{ rec.title }}</span>
-              <span class="rec-badge" :class="'badge-' + rec.severity">{{ rec.severity }}</span>
+              <span v-if="rec.count > 1" class="rec-count-badge">{{ rec.count }} resources</span>
+              <span class="rec-badge" :class="'badge-' + (rec.severity || rec.recommendation?.severity)">{{ rec.severity || rec.recommendation?.severity }}</span>
             </div>
-            <p class="rec-what">{{ rec.what }}</p>
+            <p class="rec-what">{{ rec.recommendation?.what || rec.what }}</p>
             <p class="rec-fix-first">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-              {{ rec.fix[0] }}
+              {{ (rec.recommendation?.fix || rec.fix || [])[0] }}
             </p>
           </div>
-          <a v-if="rec.docs" :href="rec.docs" target="_blank" rel="noopener" class="rec-docs-btn" title="Docs">
+          <a v-if="rec.recommendation?.docs || rec.docs" :href="rec.recommendation?.docs || rec.docs" target="_blank" rel="noopener" class="rec-docs-btn" title="Docs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Wins panel -->
+    <div class="card quick-wins-card" v-if="quickWins.length">
+      <div class="card-head">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:6px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Quick Wins
+        </h2>
+        <span class="quick-wins-badge">Low effort · High impact</span>
+      </div>
+      <p class="muted" style="margin-bottom:14px;">These medium/low severity issues are fast to fix and meaningfully improve your security posture.</p>
+      <div class="recs-list">
+        <div v-for="(rec, i) in quickWins" :key="i" class="rec-item rec-item-qw" :class="'rec-sev-' + rec.severity">
+          <div class="qw-icon">⚡</div>
+          <div class="rec-content">
+            <div class="rec-top">
+              <span class="rec-title">{{ rec.title }}</span>
+              <span v-if="rec.count > 1" class="rec-count-badge">{{ rec.count }} resources</span>
+              <span class="rec-badge" :class="'badge-' + rec.severity">{{ rec.severity }}</span>
+            </div>
+            <p class="rec-fix-first">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              {{ (rec.recommendation?.fix || [])[0] || 'See finding for details.' }}
+            </p>
+          </div>
+          <a v-if="rec.recommendation?.docs" :href="rec.recommendation.docs" target="_blank" rel="noopener" class="rec-docs-btn" title="Docs">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </a>
         </div>
@@ -197,7 +262,8 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, PointElement, LinearScale, CategoryScale, BarElement, BarController, Tooltip, Legend, Filler } from 'chart.js'
 import api from '../api'
-import { getTopRecsForCloud } from '../utils/recommendations'
+import { getTopRecsForCloud, RECOMMENDATIONS } from '../utils/recommendations'
+import { getPrioritisedRecs, getQuickWins, computeRemediationScore } from '../utils/remediationStore'
 
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, PointElement, LinearScale, CategoryScale, BarElement, BarController, Tooltip, Legend, Filler)
 
@@ -295,14 +361,51 @@ function formatRelative(iso) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-// Top recommendations — cloud-aware
-const topRecs = computed(() =>
-  getTopRecsForCloud(selectedCloud.value, {
+// Collect all findings across history for the selected cloud
+const allCloudFindings = computed(() => {
+  const findings = []
+  for (const scan of cloudHistory.value) {
+    if (Array.isArray(scan.findings)) {
+      for (const f of scan.findings) {
+        findings.push({ ...f, cloud: scan.cloud || selectedCloud.value })
+      }
+    }
+  }
+  return findings
+})
+
+const hasActualFindings = computed(() => allCloudFindings.value.length > 0)
+
+// Top recommendations — prioritised by actual finding frequency × severity
+const topRecs = computed(() => {
+  if (hasActualFindings.value) {
+    return getPrioritisedRecs(allCloudFindings.value, RECOMMENDATIONS, selectedCloud.value, 5)
+  }
+  // Fallback: use static lookup ranked by last scan severity counts
+  return getTopRecsForCloud(selectedCloud.value, {
     critical: lastScan.value?.critical || 0,
     high:     lastScan.value?.high || 0,
     medium:   lastScan.value?.medium || 0,
-  }, 5)
+  }, 5).map(rec => ({ title: rec?.title, severity: rec?.severity, recommendation: rec, count: 0 }))
+})
+
+// Quick wins — medium/low unfixed findings
+const quickWins = computed(() =>
+  hasActualFindings.value
+    ? getQuickWins(allCloudFindings.value, RECOMMENDATIONS, selectedCloud.value, 4)
+    : []
 )
+
+// Remediation progress
+const remediationScore = computed(() =>
+  computeRemediationScore(allCloudFindings.value)
+)
+const remProgressColor = computed(() => {
+  const pct = remediationScore.value.percentage
+  if (pct >= 75) return '#22c55e'
+  if (pct >= 40) return '#eab308'
+  return '#f97316'
+})
 
 function switchCloud(id) {
   selectedCloud.value = id
@@ -526,4 +629,25 @@ onMounted(async () => {
 .status-mode { padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
 .status-ok   { background: rgba(34,197,94,0.12); color: #86efac; }
 .status-none { background: rgba(148,163,184,0.1); color: #94a3b8; }
+
+/* ── Remediation Panel ── */
+.remediation-panel { margin-bottom: 22px; }
+.rem-progress-row { display: flex; align-items: center; gap: 12px; margin: 12px 0 8px; }
+.rem-progress-bar-wrap { flex: 1; height: 10px; background: rgba(148,163,184,0.12); border-radius: 10px; overflow: hidden; }
+.rem-progress-bar { height: 100%; border-radius: 10px; transition: width 0.4s ease, background 0.3s; }
+.rem-progress-pct { font-size: 0.88rem; font-weight: 700; flex-shrink: 0; }
+.rem-stats { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.8rem; }
+.rem-stat { display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
+.rem-stat-fixed { color: #86efac; }
+.rem-stat-open  { color: #fdba74; }
+.rem-stat-score { font-weight: 700; }
+
+/* ── Quick Wins ── */
+.quick-wins-card { margin-bottom: 22px; }
+.quick-wins-badge { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; background: rgba(34,197,94,0.12); color: #86efac; }
+.rec-item-qw { background: rgba(34,197,94,0.04); border-color: rgba(34,197,94,0.15); }
+.rec-item-qw:hover { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.25); }
+.qw-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+.rec-count-badge { padding: 1px 7px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; background: rgba(14,165,233,0.12); color: var(--accent); }
+.rec-source-label { font-size: 0.72rem; font-weight: 400; color: var(--text-muted); margin-left: 4px; }
 </style>

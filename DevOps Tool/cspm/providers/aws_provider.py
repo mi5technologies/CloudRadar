@@ -23,6 +23,7 @@ from cspm.discovery import (
     cloudwatch_discovery,
     secretsmanager_discovery,
     sns_discovery,
+    cloudfront_discovery,
 )
 
 
@@ -65,7 +66,7 @@ class AWSProvider(BaseProvider):
             "security_group", "alb", "waf",
             "cloudtrail", "vpc", "ebs", "eks", "ecs_cluster", "ecs_task_def",
             "kms", "api_gateway", "sqs", "dynamodb", "guardduty", "cloudwatch_alarm",
-            "secretsmanager", "sns",
+            "secretsmanager", "sns", "cloudfront",
         }
         types = set(asset_types) if asset_types else all_types
         result: dict[str, list[dict]] = {}
@@ -157,5 +158,9 @@ class AWSProvider(BaseProvider):
             report("Discovering SNS topics", "running")
             result["sns"] = sns_discovery.discover(self.region)
             report("Discovering SNS topics", "success")
+        if "cloudfront" in types:
+            report("Discovering CloudFront distributions", "running")
+            result["cloudfront"] = cloudfront_discovery.discover(self.region)
+            report("Discovering CloudFront distributions", "success")
 
         return result
