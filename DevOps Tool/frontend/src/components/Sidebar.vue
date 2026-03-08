@@ -194,7 +194,7 @@
           <div class="nav-group-items" v-show="collapsed || groups.cost">
             <router-link to="/cost" class="nav-item nav-item-cost" :title="collapsed ? 'Cost Optimisation' : ''">
               <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 100-10z"/>
               </svg>
               <span class="nav-label" v-show="!collapsed">Cost optimisation</span>
             </router-link>
@@ -214,7 +214,7 @@
           <div class="nav-group-items" v-show="collapsed || groups.ai">
             <router-link to="/security/ai-usage" class="nav-item nav-item-ai" :title="collapsed ? 'AI Usage Security' : ''">
               <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a10 10 0 0110 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z"/><path d="M12 6v6l4 2"/>
+                <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 100-10z"/>
               </svg>
               <span class="nav-label" v-show="!collapsed">AI Usage Security</span>
             </router-link>
@@ -828,11 +828,11 @@ onMounted(async () => {
 :global(.theme-light) .nav-group-pentest-header .nav-group-arrow { color: #b91c1c; }
 
 :global(.theme-light) .nav-group-tests-header {
-  background: rgba(126,34,206,0.08);
-  border-left-color: #9333ea;
+  background: rgba(126,34,206,0.12);
+  border-left-color: #7e22ce;
 }
-:global(.theme-light) .nav-group-tests-header .nav-group-label-text { color: #7e22ce; }
-:global(.theme-light) .nav-group-tests-header .nav-group-arrow { color: #7e22ce; }
+:global(.theme-light) .nav-group-tests-header .nav-group-label-text { color: #6b21a8; }
+:global(.theme-light) .nav-group-tests-header .nav-group-arrow { color: #6b21a8; }
 
 :global(.theme-light) .nav-group-cost-header {
   background: rgba(22,163,74,0.08);
@@ -842,11 +842,11 @@ onMounted(async () => {
 :global(.theme-light) .nav-group-cost-header .nav-group-arrow { color: #15803d; }
 
 :global(.theme-light) .nav-group-ai-header {
-  background: rgba(124,58,237,0.08);
-  border-left-color: #7c3aed;
+  background: rgba(124,58,237,0.15);
+  border-left-color: #5b21b6;
 }
-:global(.theme-light) .nav-group-ai-header .nav-group-label-text { color: #6d28d9; }
-:global(.theme-light) .nav-group-ai-header .nav-group-arrow { color: #6d28d9; }
+:global(.theme-light) .nav-group-ai-header .nav-group-label-text { color: #4c1d95; }
+:global(.theme-light) .nav-group-ai-header .nav-group-arrow { color: #4c1d95; }
 
 /* Light theme: nav items refined */
 :global(.theme-light) .nav-group-security .nav-item:hover { background: rgba(2,132,199,0.1); color: #0284c7; }
@@ -858,8 +858,15 @@ onMounted(async () => {
 :global(.theme-light) .nav-group-pentest .nav-item:hover { background: rgba(220,38,38,0.1); }
 :global(.theme-light) .nav-group-cost .nav-item:hover { background: rgba(22,163,74,0.1); color: #15803d; }
 :global(.theme-light) .nav-group-cost .nav-item.router-link-active { background: rgba(22,163,74,0.13); color: #16a34a; }
-:global(.theme-light) .nav-group-ai .nav-item:hover { background: rgba(124,58,237,0.1); color: #6d28d9; }
-:global(.theme-light) .nav-group-ai .nav-item.router-link-active { background: rgba(124,58,237,0.13); color: #7c3aed; }
+:global(.theme-light) .nav-group-ai .nav-item,
+:global(.theme-light) .nav-group-ai .nav-item .nav-svg { color: #4c1d95 !important; }
+:global(.theme-light) .nav-group-ai .nav-item:hover { background: rgba(124,58,237,0.15); color: #3b0764 !important; }
+:global(.theme-light) .nav-group-ai .nav-item:hover .nav-svg { color: #3b0764 !important; }
+:global(.theme-light) .nav-group-ai .nav-item.router-link-active { background: rgba(124,58,237,0.18); color: #4c1d95 !important; }
+:global(.theme-light) .nav-group-ai .nav-item.router-link-active .nav-svg { color: #4c1d95 !important; }
+:global(.theme-light) .nav-item-tests { color: #6b21a8 !important; }
+:global(.theme-light) .nav-item-tests:hover { color: #581c87 !important; }
+:global(.theme-light) .nav-item-tests.router-link-active { color: #5b21b6 !important; }
 :global(.theme-light) .nav-item-dashboard { color: #334155; }
 :global(.theme-light) .nav-item-dashboard:hover { background: rgba(2,132,199,0.1); color: #0369a1; }
 :global(.theme-light) .nav-item-dashboard.router-link-active { background: rgba(2,132,199,0.14); color: #0284c7; }
