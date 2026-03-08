@@ -13,10 +13,28 @@
       <aside class="docs-toc">
         <div class="toc-title">Contents</div>
         <nav>
-          <a v-for="item in toc" :key="item.id" :href="'#' + item.id"
-            class="toc-link" :class="{ 'toc-sub': item.sub }">
-            {{ item.label }}
-          </a>
+          <template v-for="group in tocGroups" :key="group.id">
+            <div class="toc-main-row" :class="{ expanded: openToc[group.id] }">
+              <a :href="'#' + group.id" class="toc-main-link" @click="expandSection(group.id)">
+                {{ group.label }}
+              </a>
+              <button v-if="group.subs.length" type="button" class="toc-toggle"
+                :aria-expanded="openToc[group.id]" :title="openToc[group.id] ? 'Collapse' : 'Expand'"
+                @click.prevent="toggleToc(group.id)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+            </div>
+            <transition name="toc-sub-collapse">
+              <div v-if="group.subs.length && openToc[group.id]" class="toc-subs">
+                <a v-for="sub in group.subs" :key="sub.id" :href="'#' + sub.id" class="toc-link toc-sub"
+                  @click="expandSection(sub.id)">
+                  {{ sub.label }}
+                </a>
+              </div>
+            </transition>
+          </template>
         </nav>
       </aside>
 
@@ -38,8 +56,13 @@
         </section>
 
         <!-- ───── Getting Started ───── -->
-        <section id="getting-started">
-          <h2>Getting started</h2>
+        <section id="getting-started" class="doc-section-collapsible" :class="{ collapsed: !openSections['getting-started'] }">
+          <header class="doc-section-header" @click="toggleSection('getting-started')">
+            <h2 class="doc-section-title">Getting started</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['getting-started'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['getting-started']">
 
           <h3 id="cloud-setup">1. Cloud credentials setup</h3>
           <p>Before running any scan, configure credentials for the cloud you want to audit:</p>
@@ -93,11 +116,19 @@
             <li>After the scan completes, review the structured <strong>Post-scan summary card</strong>.</li>
             <li>Go to <strong>Findings</strong> for detailed, filterable results with per-finding remediation.</li>
           </ol>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Dashboard ───── -->
-        <section id="dashboard">
-          <h2>Dashboard</h2>
+        <section id="dashboard" class="doc-section-collapsible" :class="{ collapsed: !openSections['dashboard'] }">
+          <header class="doc-section-header" @click="toggleSection('dashboard')">
+            <h2 class="doc-section-title">Dashboard</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['dashboard'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['dashboard']">
           <p>
             The Dashboard provides a high-level security posture overview across all three clouds.
             It is accessible at any time from the sidebar.
@@ -142,11 +173,19 @@
             Four KPI cards show: last scan time, total findings, risk score, and critical count.
             A "No scans yet" empty state is shown if no scan history exists for the selected cloud.
           </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Security Scan ───── -->
-        <section id="security-scan">
-          <h2>Security Scan</h2>
+        <section id="security-scan" class="doc-section-collapsible" :class="{ collapsed: !openSections['security-scan'] }">
+          <header class="doc-section-header" @click="toggleSection('security-scan')">
+            <h2 class="doc-section-title">Security Scan</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['security-scan'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['security-scan']">
           <p>
             The Security Scan page performs a comprehensive, service-by-service audit of your cloud environment.
             Every service list is cloud-specific — the correct service names are shown for each cloud.
@@ -185,11 +224,19 @@
             <li><strong>⚡ Quick wins</strong> — up to 3 low-effort, high-impact fixes pulled from the scan's medium/low findings</li>
             <li>Download links for JSON and CSV reports</li>
           </ul>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Findings ───── -->
-        <section id="findings">
-          <h2>Findings</h2>
+        <section id="findings" class="doc-section-collapsible" :class="{ collapsed: !openSections['findings'] }">
+          <header class="doc-section-header" @click="toggleSection('findings')">
+            <h2 class="doc-section-title">Findings</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['findings'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['findings']">
           <p>
             The Findings page lists all security findings from the most recent scan with powerful filtering
             and a slide-over detail panel.
@@ -229,11 +276,19 @@
           </p>
           <h3 id="findings-export">Export CSV</h3>
           <p>Click <strong>Export CSV</strong> to download the currently filtered findings as a CSV file.</p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Vulnerabilities ───── -->
-        <section id="vulnerabilities">
-          <h2>Vulnerabilities</h2>
+        <section id="vulnerabilities" class="doc-section-collapsible" :class="{ collapsed: !openSections['vulnerabilities'] }">
+          <header class="doc-section-header" @click="toggleSection('vulnerabilities')">
+            <h2 class="doc-section-title">Vulnerabilities</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['vulnerabilities'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['vulnerabilities']">
           <p>
             The Vulnerabilities page scans container registries, virtual machines, and native security
             tools for known CVEs and vulnerability assessment findings.
@@ -274,11 +329,19 @@
               </div>
             </div>
           </div>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Pentest ───── -->
-        <section id="pentest">
-          <h2>Pentest</h2>
+        <section id="pentest" class="doc-section-collapsible" :class="{ collapsed: !openSections['pentest'] }">
+          <header class="doc-section-header" @click="toggleSection('pentest')">
+            <h2 class="doc-section-title">Pentest</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['pentest'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['pentest']">
           <p>
             The Pentest page simulates real-world attack scenarios using your cloud environment's own
             configuration. All check names and descriptions match the selected cloud's terminology.
@@ -321,11 +384,19 @@
               </div>
             </div>
           </div>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Security Checks Reference ───── -->
-        <section id="security-checks">
-          <h2>Security checks reference</h2>
+        <section id="security-checks" class="doc-section-collapsible" :class="{ collapsed: !openSections['security-checks'] }">
+          <header class="doc-section-header" @click="toggleSection('security-checks')">
+            <h2 class="doc-section-title">Security checks reference</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['security-checks'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['security-checks']">
           <p>
             All checks map to entries in <code>recommendations.js</code> which provides detailed
             remediation guidance for each rule. Below is the full reference grouped by cloud and service.
@@ -363,11 +434,19 @@
               <span class="sev-badge" :class="r.sev">{{ r.sev }}</span>
             </div>
           </div>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Compliance ───── -->
-        <section id="compliance">
-          <h2>Compliance</h2>
+        <section id="compliance" class="doc-section-collapsible" :class="{ collapsed: !openSections['compliance'] }">
+          <header class="doc-section-header" @click="toggleSection('compliance')">
+            <h2 class="doc-section-title">Compliance</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['compliance'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['compliance']">
           <p>
             The Compliance page runs framework-specific checks (CIS Benchmarks, NIST 800-53, ISO 27001, SOC 2, GDPR, PCI-DSS) and optionally produces gap analysis.
           </p>
@@ -381,11 +460,19 @@
             <li>A collapsible <strong>Passed controls</strong> section shows what is already compliant.</li>
             <li>A collapsible <strong>Raw JSON response</strong> section is available for integration with other tools.</li>
           </ul>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Attack Paths ───── -->
-        <section id="attack-paths">
-          <h2>Attack Paths</h2>
+        <section id="attack-paths" class="doc-section-collapsible" :class="{ collapsed: !openSections['attack-paths'] }">
+          <header class="doc-section-header" @click="toggleSection('attack-paths')">
+            <h2 class="doc-section-title">Attack Paths</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['attack-paths'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['attack-paths']">
           <p>
             The Attack Paths page visualises chains of weaknesses that could be exploited together for
             maximum impact. Each path shows the entry point, traversal steps, and blast radius.
@@ -396,20 +483,36 @@
             <li><strong>GCP:</strong> Public Cloud Function with wildcard service account → Google Cloud Storage bucket read → BigQuery dataset queried.</li>
             <li><strong>Azure:</strong> Public blob container with SAS token → Storage account key exposed → subscription-wide data access.</li>
           </ul>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Governance ───── -->
-        <section id="governance">
-          <h2>Governance</h2>
+        <section id="governance" class="doc-section-collapsible" :class="{ collapsed: !openSections['governance'] }">
+          <header class="doc-section-header" @click="toggleSection('governance')">
+            <h2 class="doc-section-title">Governance</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['governance'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['governance']">
           <p>
             The Governance page runs policy checks for organisational standards such as tagging compliance,
             service enablement, and cost governance best practices. Policy checks are defined in YAML rule files.
           </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Cost Optimisation ───── -->
-        <section id="cost-optimisation">
-          <h2>Cost Optimisation</h2>
+        <section id="cost-optimisation" class="doc-section-collapsible" :class="{ collapsed: !openSections['cost-optimisation'] }">
+          <header class="doc-section-header" @click="toggleSection('cost-optimisation')">
+            <h2 class="doc-section-title">Cost Optimisation</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['cost-optimisation'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['cost-optimisation']">
           <p>
             The Cost Optimisation page identifies wasteful resources, tagging gaps, and over-provisioned assets
             across AWS, Google Cloud, and Azure. It helps you reduce cloud spend by flagging idle resources
@@ -539,11 +642,19 @@
             <code>{ "cloud": "aws" | "gcp" | "azure", "region": "us-east-1", "skip_rules": ["cost.ec2_stopped", ...] }</code>.
             The <code>skip_rules</code> array lists rule IDs to exclude from the results (for checks the user deliberately disabled).
           </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Scan History ───── -->
-        <section id="scan-history">
-          <h2>Scan History</h2>
+        <section id="scan-history" class="doc-section-collapsible" :class="{ collapsed: !openSections['scan-history'] }">
+          <header class="doc-section-header" @click="toggleSection('scan-history')">
+            <h2 class="doc-section-title">Scan History</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['scan-history'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['scan-history']">
           <p>
             Every time a Security Scan completes, the result is automatically saved to
             <code>localStorage</code> (up to 100 entries). Access scan history from <strong>Audit → Scan History</strong>.
@@ -553,30 +664,170 @@
             <li>Click any row to open a slide-over with a severity bar chart and full details.</li>
             <li>Use <strong>Clear history</strong> to remove all saved entries (requires confirmation).</li>
           </ul>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Notifications ───── -->
-        <section id="notifications">
-          <h2>Notifications</h2>
+        <section id="notifications" class="doc-section-collapsible" :class="{ collapsed: !openSections['notifications'] }">
+          <header class="doc-section-header" @click="toggleSection('notifications')">
+            <h2 class="doc-section-title">Notifications</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['notifications'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['notifications']">
           <p>
             The Notifications page shows scan completion alerts, finding threshold breaches, and system messages.
             The bell icon in the sidebar header also shows an unread badge when new notifications arrive.
           </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Scheduled Scans ───── -->
-        <section id="scheduled-scans">
-          <h2>Scheduled Scans</h2>
+        <section id="scheduled-scans" class="doc-section-collapsible" :class="{ collapsed: !openSections['scheduled-scans'] }">
+          <header class="doc-section-header" @click="toggleSection('scheduled-scans')">
+            <h2 class="doc-section-title">Scheduled Scans</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['scheduled-scans'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['scheduled-scans']">
           <p>
             Create cron-based scan schedules on the Scheduled Scans page. Each schedule specifies a cloud provider,
             region/project, service selection, and cron expression. The scheduler runs scans in the background
             and stores results in scan history automatically.
           </p>
+
+            </div>
+          </transition>
+        </section>
+
+        <!-- ───── AI Usage Security ───── -->
+        <section id="ai-usage-security" class="doc-section-collapsible" :class="{ collapsed: !openSections['ai-usage-security'] }">
+          <header class="doc-section-header" @click="toggleSection('ai-usage-security')">
+            <h2 class="doc-section-title">AI Usage Security</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['ai-usage-security'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['ai-usage-security']">
+          <p>
+            When using cloud AI/ML services (AWS Bedrock, Google Vertex AI, Azure OpenAI), security checks should
+            verify guardrails, content filtering, usage patterns, and traffic anomalies. Below are checks and
+            recommendations to ensure AI workloads are safe and compliant.
+          </p>
+
+          <h3 id="ai-guardrails">Guardrails &amp; content filtering</h3>
+          <p>Verify that AI models have appropriate guardrails and content filters enabled:</p>
+          <div class="tabs-wrap">
+            <div class="tab-block">
+              <div class="tab-head aws">AWS Bedrock</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Guardrails enabled</strong> — Bedrock Guardrails (GA April 2024) provide model-independent safety: content filtering (hate, violence, sexual, misconduct), prompt attack prevention (jailbreak, injection, leakage), PII masking, topic classification, contextual grounding.</li>
+                  <li><strong>Content Policy</strong> — Block harmful content at medium+ severity for prompts and completions.</li>
+                  <li><strong>Prompt Attack Prevention</strong> — Detect jailbreak attempts, prompt injection, and prompt leakage.</li>
+                  <li><strong>CloudWatch metrics</strong> — Monitor <code>InvocationsIntervened</code>, <code>TextUnitCount</code>, <code>InvocationLatency</code> to detect abuse patterns.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head gcp">Google Vertex AI</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>AI Protection</strong> — Security Command Center AI Protection monitors AI workflows for threats and policy violations.</li>
+                  <li><strong>Event Threat Detection</strong> — Near-real-time monitoring for anomalous service account activity on Vertex AI assets.</li>
+                  <li><strong>Content filtering</strong> — Configure safety settings for harmful content categories.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="tab-block">
+              <div class="tab-head azure">Azure OpenAI</div>
+              <div class="tab-body">
+                <ul>
+                  <li><strong>Content filters</strong> — Azure AI Content Safety: hate, violence, sexual, self-harm at four severity levels (safe, low, medium, high). Default: filter medium+.</li>
+                  <li><strong>Jailbreak detection</strong> — Optional prompt injection / jailbreak risk detection.</li>
+                  <li><strong>PII detection</strong> — Optional PII and protected material detection.</li>
+                  <li><strong>Abuse monitoring</strong> — Automated and human review of flagged content; apply for modified monitoring if processing sensitive data.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <h3 id="ai-usage-monitoring">Usage &amp; traffic monitoring</h3>
+          <p>
+            Compare incoming traffic and API usage to detect anomalies, cost drift, and potential loopholes:
+          </p>
+          <ul>
+            <li><strong>Usage vs. traffic correlation</strong> — Compare CloudWatch/Cloud Monitoring/Log Analytics invocation counts with application-layer traffic (API Gateway, load balancer logs). Mismatches may indicate direct model access bypassing your app, credential theft, or shadow usage.</li>
+            <li><strong>Anomaly detection</strong> — Use Cloud Armor Adaptive Protection (GCP), GuardDuty (AWS), or Defender for Cloud (Azure) to detect unusual request patterns, high-frequency scraping, or DDoS-like traffic.</li>
+            <li><strong>Cost vs. expected usage</strong> — If token/request counts exceed expected traffic, investigate: unauthenticated endpoints, overly permissive IAM, or abuse.</li>
+            <li><strong>Rate limiting &amp; quotas</strong> — Ensure API Gateway, Application Load Balancers, or WAF enforce rate limits. Missing limits allow runaway usage and cost spikes.</li>
+          </ul>
+
+          <h3 id="ai-recommendations">What to add</h3>
+          <p>Recommended checks and controls to implement:</p>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Check</span>
+              <span>Description</span>
+              <span>Severity</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.bedrock.no_guardrails</code></span>
+              <span>AWS Bedrock model or flow invoked without Guardrails attached. Enables harmful content and prompt attacks.</span>
+              <span class="sev-badge high">High</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.bedrock.public_access</code></span>
+              <span>Bedrock model accessible from public internet or overly permissive IAM. Restrict to VPC and least-privilege roles.</span>
+              <span class="sev-badge critical">Critical</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.vertex.no_safety</code></span>
+              <span>Vertex AI model with safety settings disabled or too permissive. Enable content filtering.</span>
+              <span class="sev-badge high">High</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.azure.no_content_filter</code></span>
+              <span>Azure OpenAI deployment without content filters or with filters fully disabled.</span>
+              <span class="sev-badge high">High</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.usage_traffic_mismatch</code></span>
+              <span>AI API usage (tokens/requests) significantly exceeds expected traffic from app logs. Indicates bypass or abuse.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.no_rate_limit</code></span>
+              <span>AI endpoint has no rate limiting or quota. Enables cost runaway and abuse.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>ai.prompt_logging_disabled</code></span>
+              <span>Prompt and completion logging disabled. Needed for audit, abuse detection, and compliance.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+          </div>
+          <p>
+            <strong>Note:</strong> CloudRadar does not yet implement these AI checks natively. Use this as a reference
+            for manual audits or future scanner extensions. Integrate with CloudWatch, Security Command Center, or
+            Defender for Cloud for automated monitoring.
+          </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── UI Features ───── -->
-        <section id="ui-features">
-          <h2>UI features</h2>
+        <section id="ui-features" class="doc-section-collapsible" :class="{ collapsed: !openSections['ui-features'] }">
+          <header class="doc-section-header" @click="toggleSection('ui-features')">
+            <h2 class="doc-section-title">UI features</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['ui-features'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['ui-features']">
 
           <h3 id="command-palette">Command palette (Ctrl+K)</h3>
           <p>
@@ -611,11 +862,19 @@
             On small screens (below 768 px), the sidebar hides and a hamburger menu button (☰) appears
             in the top-left. Tap to open the sidebar as a full-height overlay. Tap the backdrop to close it.
           </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Recommendations Engine ───── -->
-        <section id="recommendations-engine">
-          <h2>Recommendations engine</h2>
+        <section id="recommendations-engine" class="doc-section-collapsible" :class="{ collapsed: !openSections['recommendations-engine'] }">
+          <header class="doc-section-header" @click="toggleSection('recommendations-engine')">
+            <h2 class="doc-section-title">Recommendations engine</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['recommendations-engine'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['recommendations-engine']">
           <p>
             All per-finding recommendations come from <code>src/utils/recommendations.js</code> — a
             centralised lookup table with over <strong>90 rules</strong> covering AWS, Google Cloud, Azure, and CloudFront.
@@ -654,11 +913,19 @@
             A rule affecting 5 resources ranks above a rule affecting 1 resource of the same severity.
             This ensures the most impactful actions appear at the top of both the Dashboard and post-scan summary.
           </p>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Built-in Tests ───── -->
-        <section id="tests">
-          <h2>Built-in tests</h2>
+        <section id="tests" class="doc-section-collapsible" :class="{ collapsed: !openSections['tests'] }">
+          <header class="doc-section-header" @click="toggleSection('tests')">
+            <h2 class="doc-section-title">Built-in tests</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['tests'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['tests']">
           <p>
             CloudRadar ships with a full built-in test suite you can run directly from the UI — no terminal required.
             Navigate to <strong>Tests</strong> in the sidebar. Tests validate the application's own logic
@@ -716,11 +983,19 @@
             </li>
             <li>Add its description to the <code>FALLBACK_TESTS</code> array in <code>Tests.vue</code> — it will appear in the UI automatically.</li>
           </ol>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── API / Backend ───── -->
-        <section id="api">
-          <h2>Backend API</h2>
+        <section id="api" class="doc-section-collapsible" :class="{ collapsed: !openSections['api'] }">
+          <header class="doc-section-header" @click="toggleSection('api')">
+            <h2 class="doc-section-title">Backend API</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['api'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['api']">
           <p>The Python backend exposes a REST API consumed by the Vue.js frontend:</p>
           <div class="api-table">
             <div class="api-row header"><span>Method</span><span>Path</span><span>Description</span></div>
@@ -737,11 +1012,19 @@
             <li>As fallback, frontend polls <code>GET /api/scan/&lt;job_id&gt;</code> every 1.5 seconds.</li>
             <li>On completion, the scan result includes <code>summary</code> and <code>downloads</code>.</li>
           </ol>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Changelog ───── -->
-        <section id="changelog">
-          <h2>Changelog</h2>
+        <section id="changelog" class="doc-section-collapsible" :class="{ collapsed: !openSections['changelog'] }">
+          <header class="doc-section-header" @click="toggleSection('changelog')">
+            <h2 class="doc-section-title">Changelog</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['changelog'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['changelog']">
           <div class="changelog-entry">
             <div class="cl-version">v2.5</div>
             <ul>
@@ -813,6 +1096,9 @@
               <li>Dark / light mode theme toggle</li>
             </ul>
           </div>
+
+            </div>
+          </transition>
         </section>
       </main>
     </div>
@@ -824,69 +1110,207 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const showFab = ref(false)
 
+const COLLAPSIBLE_IDS = [
+  'getting-started', 'dashboard', 'security-scan', 'findings', 'vulnerabilities', 'pentest',
+  'security-checks', 'compliance', 'attack-paths', 'governance', 'cost-optimisation',
+  'scan-history', 'notifications', 'scheduled-scans', 'ai-usage-security',
+  'ui-features', 'recommendations-engine', 'tests', 'api', 'changelog',
+]
+
+const openSections = ref({})
+
+function loadSections() {
+  try {
+    const raw = localStorage.getItem('cspm_docs_sections')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const out = {}
+      for (const id of COLLAPSIBLE_IDS) {
+        out[id] = parsed[id] !== false
+      }
+      openSections.value = out
+      return
+    }
+  } catch (_) {}
+  const out = {}
+  for (const id of COLLAPSIBLE_IDS) {
+    out[id] = true
+  }
+  openSections.value = out
+}
+
+function saveSections() {
+  try {
+    localStorage.setItem('cspm_docs_sections', JSON.stringify(openSections.value))
+  } catch (_) {}
+}
+
+function toggleSection(id) {
+  openSections.value[id] = !openSections.value[id]
+  saveSections()
+}
+
+const SUBSECTION_TO_SECTION = {
+  'cloud-setup': 'getting-started', 'first-scan': 'getting-started',
+  'dashboard-clouds': 'dashboard', 'dashboard-charts': 'dashboard', 'dashboard-recs': 'dashboard',
+  'dashboard-quickwins': 'dashboard', 'dashboard-remediation': 'dashboard', 'dashboard-kpis': 'dashboard',
+  'scan-aws': 'security-scan', 'scan-gcp': 'security-scan', 'scan-azure': 'security-scan',
+  'scan-options': 'security-scan', 'scan-progress': 'security-scan', 'scan-summary': 'security-scan',
+  'findings-filter': 'findings', 'findings-slideover': 'findings', 'findings-remediation': 'findings', 'findings-export': 'findings',
+  'checks-aws': 'security-checks', 'checks-gcp': 'security-checks', 'checks-azure': 'security-checks',
+  'compliance-gap': 'compliance',
+  'cost-how': 'cost-optimisation', 'cost-categories': 'cost-optimisation',
+  'cost-checks-aws': 'cost-optimisation', 'cost-checks-gcp': 'cost-optimisation', 'cost-checks-azure': 'cost-optimisation', 'cost-api': 'cost-optimisation',
+  'ai-guardrails': 'ai-usage-security', 'ai-usage-monitoring': 'ai-usage-security', 'ai-recommendations': 'ai-usage-security',
+  'command-palette': 'ui-features', 'sidebar': 'ui-features', 'theme': 'ui-features', 'toast': 'ui-features', 'mobile': 'ui-features',
+  'recs-quickwin': 'recommendations-engine', 'recs-prioritisation': 'recommendations-engine',
+  'tests-how': 'tests', 'tests-suites': 'tests', 'tests-technical': 'tests', 'tests-isolation': 'tests', 'tests-new-suite': 'tests',
+  'api-scan-flow': 'api',
+}
+
+function expandSection(id) {
+  const sectionId = COLLAPSIBLE_IDS.includes(id) ? id : (SUBSECTION_TO_SECTION[id] || id)
+  if (COLLAPSIBLE_IDS.includes(sectionId) && !openSections.value[sectionId]) {
+    openSections.value[sectionId] = true
+    saveSections()
+  }
+  const tocParent = SUBSECTION_TO_SECTION[id] || id
+  if (openToc.value && !openToc.value[tocParent]) {
+    openToc.value[tocParent] = true
+    saveToc()
+  }
+}
+
 function onScroll() {
   showFab.value = (document.documentElement.scrollTop || document.body.scrollTop) > 300
 }
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
-onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
-onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
-const toc = [
-  { id: 'overview',               label: 'Overview' },
-  { id: 'getting-started',        label: 'Getting started' },
-  { id: 'cloud-setup',            label: '  Cloud credentials setup', sub: true },
-  { id: 'first-scan',             label: '  First scan', sub: true },
-  { id: 'dashboard',              label: 'Dashboard' },
-  { id: 'dashboard-clouds',       label: '  Multi-cloud tabs', sub: true },
-  { id: 'dashboard-charts',       label: '  Charts', sub: true },
-  { id: 'dashboard-recs',         label: '  Top recommendations', sub: true },
-  { id: 'dashboard-quickwins',    label: '  Quick Wins panel', sub: true },
-  { id: 'dashboard-remediation',  label: '  Remediation Progress', sub: true },
-  { id: 'security-scan',          label: 'Security Scan' },
-  { id: 'scan-aws',               label: '  AWS services (31)', sub: true },
-  { id: 'scan-gcp',               label: '  Google Cloud services', sub: true },
-  { id: 'scan-azure',             label: '  Azure services', sub: true },
-  { id: 'scan-summary',           label: '  Post-scan summary card', sub: true },
-  { id: 'findings',               label: 'Findings' },
-  { id: 'findings-slideover',     label: '  Slide-over panel', sub: true },
-  { id: 'findings-remediation',   label: '  Remediation tracking', sub: true },
-  { id: 'vulnerabilities',        label: 'Vulnerabilities' },
-  { id: 'pentest',                label: 'Pentest' },
-  { id: 'security-checks',        label: 'Security checks reference' },
-  { id: 'checks-aws',             label: '  AWS checks (incl. CloudFront)', sub: true },
-  { id: 'checks-gcp',             label: '  Google Cloud checks', sub: true },
-  { id: 'checks-azure',           label: '  Azure checks', sub: true },
-  { id: 'compliance',             label: 'Compliance & gap analysis' },
-  { id: 'attack-paths',           label: 'Attack Paths' },
-  { id: 'governance',             label: 'Governance' },
-  { id: 'cost-optimisation',      label: 'Cost Optimisation' },
-  { id: 'cost-how',               label: '  How to use', sub: true },
-  { id: 'cost-categories',        label: '  Categories', sub: true },
-  { id: 'cost-checks-aws',        label: '  AWS cost checks', sub: true },
-  { id: 'cost-checks-gcp',        label: '  Google Cloud cost checks', sub: true },
-  { id: 'cost-checks-azure',      label: '  Azure cost checks', sub: true },
-  { id: 'cost-api',               label: '  API', sub: true },
-  { id: 'scan-history',           label: 'Scan History' },
-  { id: 'notifications',          label: 'Notifications' },
-  { id: 'scheduled-scans',        label: 'Scheduled Scans' },
-  { id: 'tests',                  label: 'Built-in tests' },
-  { id: 'tests-how',              label: '  How to run tests', sub: true },
-  { id: 'tests-suites',           label: '  Test suites (9)', sub: true },
-  { id: 'tests-technical',        label: '  Technical detail', sub: true },
-  { id: 'tests-new-suite',        label: '  Adding a new suite', sub: true },
-  { id: 'ui-features',            label: 'UI features' },
-  { id: 'command-palette',        label: '  Command palette (Ctrl+K)', sub: true },
-  { id: 'sidebar',                label: '  Sidebar', sub: true },
-  { id: 'toast',                  label: '  Toast notifications', sub: true },
-  { id: 'mobile',                 label: '  Mobile support', sub: true },
-  { id: 'recommendations-engine', label: 'Recommendations engine' },
-  { id: 'recs-quickwin',          label: '  Quick win flag', sub: true },
-  { id: 'recs-prioritisation',    label: '  Prioritised recommendations', sub: true },
-  { id: 'api',                    label: 'Backend API' },
-  { id: 'changelog',              label: 'Changelog' },
+function onHashChange() {
+  const hash = (window.location.hash || '').replace(/^#/, '')
+  if (hash) expandSection(hash)
+}
+
+onMounted(() => {
+  loadSections()
+  loadToc()
+  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('hashchange', onHashChange)
+  onHashChange()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+  window.removeEventListener('hashchange', onHashChange)
+})
+
+const tocFlat = [
+  { id: 'overview', label: 'Overview', sub: false },
+  { id: 'getting-started', label: 'Getting started', sub: false },
+  { id: 'cloud-setup', label: 'Cloud credentials setup', sub: true },
+  { id: 'first-scan', label: 'First scan', sub: true },
+  { id: 'dashboard', label: 'Dashboard', sub: false },
+  { id: 'dashboard-clouds', label: 'Multi-cloud tabs', sub: true },
+  { id: 'dashboard-charts', label: 'Charts', sub: true },
+  { id: 'dashboard-recs', label: 'Top recommendations', sub: true },
+  { id: 'dashboard-quickwins', label: 'Quick Wins panel', sub: true },
+  { id: 'dashboard-remediation', label: 'Remediation Progress', sub: true },
+  { id: 'security-scan', label: 'Security Scan', sub: false },
+  { id: 'scan-aws', label: 'AWS services (31)', sub: true },
+  { id: 'scan-gcp', label: 'Google Cloud services', sub: true },
+  { id: 'scan-azure', label: 'Azure services', sub: true },
+  { id: 'scan-summary', label: 'Post-scan summary card', sub: true },
+  { id: 'findings', label: 'Findings', sub: false },
+  { id: 'findings-slideover', label: 'Slide-over panel', sub: true },
+  { id: 'findings-remediation', label: 'Remediation tracking', sub: true },
+  { id: 'vulnerabilities', label: 'Vulnerabilities', sub: false },
+  { id: 'pentest', label: 'Pentest', sub: false },
+  { id: 'security-checks', label: 'Security checks reference', sub: false },
+  { id: 'checks-aws', label: 'AWS checks (incl. CloudFront)', sub: true },
+  { id: 'checks-gcp', label: 'Google Cloud checks', sub: true },
+  { id: 'checks-azure', label: 'Azure checks', sub: true },
+  { id: 'compliance', label: 'Compliance & gap analysis', sub: false },
+  { id: 'attack-paths', label: 'Attack Paths', sub: false },
+  { id: 'governance', label: 'Governance', sub: false },
+  { id: 'cost-optimisation', label: 'Cost Optimisation', sub: false },
+  { id: 'cost-how', label: 'How to use', sub: true },
+  { id: 'cost-categories', label: 'Categories', sub: true },
+  { id: 'cost-checks-aws', label: 'AWS cost checks', sub: true },
+  { id: 'cost-checks-gcp', label: 'Google Cloud cost checks', sub: true },
+  { id: 'cost-checks-azure', label: 'Azure cost checks', sub: true },
+  { id: 'cost-api', label: 'API', sub: true },
+  { id: 'scan-history', label: 'Scan History', sub: false },
+  { id: 'notifications', label: 'Notifications', sub: false },
+  { id: 'scheduled-scans', label: 'Scheduled Scans', sub: false },
+  { id: 'ai-usage-security', label: 'AI Usage Security', sub: false },
+  { id: 'ai-guardrails', label: 'Guardrails & content filtering', sub: true },
+  { id: 'ai-usage-monitoring', label: 'Usage & traffic monitoring', sub: true },
+  { id: 'ai-recommendations', label: 'What to add', sub: true },
+  { id: 'tests', label: 'Built-in tests', sub: false },
+  { id: 'tests-how', label: 'How to run tests', sub: true },
+  { id: 'tests-suites', label: 'Test suites (9)', sub: true },
+  { id: 'tests-technical', label: 'Technical detail', sub: true },
+  { id: 'tests-new-suite', label: 'Adding a new suite', sub: true },
+  { id: 'ui-features', label: 'UI features', sub: false },
+  { id: 'command-palette', label: 'Command palette (Ctrl+K)', sub: true },
+  { id: 'sidebar', label: 'Sidebar', sub: true },
+  { id: 'toast', label: 'Toast notifications', sub: true },
+  { id: 'mobile', label: 'Mobile support', sub: true },
+  { id: 'recommendations-engine', label: 'Recommendations engine', sub: false },
+  { id: 'recs-quickwin', label: 'Quick win flag', sub: true },
+  { id: 'recs-prioritisation', label: 'Prioritised recommendations', sub: true },
+  { id: 'api', label: 'Backend API', sub: false },
+  { id: 'changelog', label: 'Changelog', sub: false },
 ]
+
+const tocGroups = (() => {
+  const groups = []
+  let current = null
+  for (const item of tocFlat) {
+    if (!item.sub) {
+      current = { id: item.id, label: item.label, subs: [] }
+      groups.push(current)
+    } else if (current) {
+      current.subs.push({ id: item.id, label: item.label })
+    }
+  }
+  return groups
+})()
+
+const openToc = ref({})
+
+function loadToc() {
+  try {
+    const raw = localStorage.getItem('cspm_docs_toc')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const out = {}
+      for (const g of tocGroups) {
+        out[g.id] = parsed[g.id] !== false
+      }
+      openToc.value = out
+      return
+    }
+  } catch (_) {}
+  const out = {}
+  for (const g of tocGroups) {
+    out[g.id] = true
+  }
+  openToc.value = out
+}
+
+function saveToc() {
+  try {
+    localStorage.setItem('cspm_docs_toc', JSON.stringify(openToc.value))
+  } catch (_) {}
+}
+
+function toggleToc(id) {
+  openToc.value[id] = !openToc.value[id]
+  saveToc()
+}
 
 const testSuites = [
   { name: 'test_rule_engine',        desc: 'Security rule operators (true/false, equals, gt, in, not_in) fire correctly, finding fields are accurate, only non-compliant assets are flagged.', method: 'Unit' },
@@ -1060,20 +1484,65 @@ const apiEndpoints = [
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--text-muted); padding: 0 16px 10px;
 }
+.toc-main-row {
+  display: flex; align-items: center; gap: 4px; margin: 2px 0;
+  border-radius: 6px; padding: 2px 4px;
+}
+.toc-main-row.expanded .toc-toggle svg { transform: rotate(180deg); }
+.toc-main-link {
+  flex: 1; padding: 6px 12px; font-size: 0.82rem; font-weight: 700;
+  color: var(--text); text-decoration: none; border-radius: 5px;
+  transition: color 0.13s, background 0.13s; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; line-height: 1.5; min-width: 0;
+}
+.toc-main-link:hover { color: #a5b4fc; background: rgba(99,102,241,0.08); }
+.toc-toggle {
+  flex-shrink: 0; width: 24px; height: 24px; padding: 0; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 4px; cursor: pointer;
+  color: var(--text-muted); transition: color 0.13s, background 0.13s;
+}
+.toc-toggle:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.toc-toggle svg { transition: transform 0.2s ease; }
+.toc-subs { padding-left: 8px; margin-bottom: 2px; border-left: 2px solid rgba(99,102,241,0.25); margin-left: 12px; }
+.toc-sub-collapse-enter-active, .toc-sub-collapse-leave-active { transition: opacity 0.15s ease; }
+.toc-sub-collapse-enter-from, .toc-sub-collapse-leave-to { opacity: 0; }
 .toc-link {
-  display: block; padding: 4px 16px; font-size: 0.81rem;
+  display: block; padding: 4px 16px; font-size: 0.78rem;
   color: var(--text-muted); text-decoration: none; border-radius: 5px;
   transition: color 0.13s, background 0.13s; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; line-height: 1.6;
 }
 .toc-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.toc-sub { padding-left: 26px; font-size: 0.78rem; }
+.toc-sub { padding-left: 12px; }
 
 /* Content area */
 .docs-content { flex: 1; min-width: 0; padding: 32px 40px 60px; max-width: 900px; }
 .docs-content section { margin-bottom: 48px; }
 .docs-content h1 { font-size: 2rem; margin-bottom: 10px; }
 .docs-content h2 { font-size: 1.35rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+/* Collapsible section headers */
+.doc-section-collapsible { margin-bottom: 24px; }
+.doc-section-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; margin: 0 -18px 0 -18px; padding-left: 18px; padding-right: 18px;
+  cursor: pointer; user-select: none; border-radius: 10px; transition: background 0.15s;
+  border: 1px solid transparent;
+}
+.doc-section-header:hover { background: rgba(99,102,241,0.06); border-color: rgba(99,102,241,0.15); }
+.doc-section-title {
+  font-size: 1.2rem; font-weight: 700; margin: 0; color: var(--text);
+  letter-spacing: -0.02em;
+}
+.doc-section-arrow {
+  flex-shrink: 0; color: var(--text-muted); transition: transform 0.25s ease;
+}
+.doc-section-arrow.open { transform: rotate(180deg); }
+.doc-section-collapsible.collapsed .doc-section-header { margin-bottom: 0; }
+.doc-section-body { padding-top: 4px; }
+.doc-collapse-enter-active, .doc-collapse-leave-active { transition: opacity 0.2s ease; }
+.doc-collapse-enter-from, .doc-collapse-leave-to { opacity: 0; }
 .docs-content h3 { font-size: 1.05rem; margin: 22px 0 8px; color: var(--text); }
 .docs-content p { margin-bottom: 12px; line-height: 1.7; color: var(--text-muted); }
 .docs-content p.lead { font-size: 1.05rem; color: var(--text); }

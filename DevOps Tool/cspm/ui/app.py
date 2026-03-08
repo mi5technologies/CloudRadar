@@ -35,6 +35,7 @@ from cspm.ui.state import app_state, CONFIG_PATH_DEFAULT
 from cspm.ui import jobs as jobs_module
 from cspm.ui import test_runner
 from cspm.scanners.cost_scanner import scan_cost
+from cspm.scanners.ai_scanner import scan_ai
 
 
 UI_DIR = Path(__file__).resolve().parent
@@ -450,6 +451,48 @@ async def api_cost(request: Request) -> dict[str, Any]:
         result["summary"]["by_category"] = by_cat
         result["summary"]["skipped_rules"] = list(skip_set)
 
+    return result
+
+
+# ---------- AI Usage Security ----------
+
+@app.post("/api/ai-scan")
+async def api_ai_scan(request: Request) -> dict[str, Any]:
+    """Run AI usage security scan (Bedrock, Vertex AI, Azure OpenAI).
+
+    POST body (all optional):
+        cloud            "aws" | "gcp" | "azure"  (default: "aws")
+        region           AWS/GCP region            (default: us-east-1 / us-central1)
+        project_id       GCP project ID            (from config if not provided)
+        subscription_id  Azure subscription ID     (from config if not provided)
+        skip_rules       List of rule IDs to exclude
+    """
+    body = await request.json() or {}
+    cloud = (body.get("cloud") or "aws").strip().lower()
+    if cloud not in ("aws", "gcp", "azure"):
+        cloud = "aws"
+    region = (body.get("region") or "").strip()
+    project_id = (body.get("project_id") or "").strip()
+    subscription_id = (body.get("subscription_id") or "").strip()
+    skip_rules: list[str] = body.get("skip_rules") or []
+
+    if cloud == "aws" and not region:
+        region = app_state.aws.region or "us-east-1"
+    elif cloud == "gcp":
+        region = region or "us-central1"
+        if not project_id:
+            project_id = app_state.gcp.project_id or ""
+    elif cloud == "azure":
+        if not subscription_id:
+            subscription_id = app_state.azure.subscription_id or ""
+
+    result = scan_ai(
+        cloud=cloud,
+        region=region or None,
+        project_id=project_id or None,
+        subscription_id=subscription_id or None,
+        skip_rules=skip_rules,
+    )
     return result
 
 

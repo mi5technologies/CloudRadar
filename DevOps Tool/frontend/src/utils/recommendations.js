@@ -1686,6 +1686,109 @@ export const RECOMMENDATIONS = {
     docs: 'https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/tag-resources',
     severity: 'low', quickWin: true,
   },
+
+  // ─── AI Usage Security ────────────────────────────────────────────────────
+  'ai.bedrock.no_guardrails': {
+    cloud: 'aws', title: 'No Bedrock Guardrails Configured',
+    what: 'AWS Bedrock foundation models are available but no Guardrails are defined in the account.',
+    why: 'Without guardrails, prompts and completions are not filtered for harmful content, prompt injection, jailbreak attempts, or PII. This exposes applications to abuse and compliance risk.',
+    fix: [
+      'Create Bedrock Guardrails in the AWS Console (Bedrock → Guardrails).',
+      'Enable Content Policy (hate, violence, sexual, misconduct) and Prompt Attack Prevention (jailbreak, injection, leakage).',
+      'Apply guardrails at invoke time in your application using the guardrailIdentifier parameter.',
+      'Monitor CloudWatch metrics: InvocationsIntervened, TextUnitCount for abuse patterns.',
+    ],
+    docs: 'https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html',
+    severity: 'high',
+  },
+  'ai.bedrock.guardrail_not_ready': {
+    cloud: 'aws', title: 'Bedrock Guardrail Not Ready',
+    what: 'A Bedrock Guardrail exists but its status is not READY.',
+    why: 'Guardrails must be in READY status to be used at invoke time. A non-ready guardrail will cause invocation failures or be silently skipped.',
+    fix: [
+      'Check the guardrail configuration in the Bedrock console for errors.',
+      'Wait for the guardrail to complete creation/update and reach READY status.',
+      'Review guardrail version and ensure the correct version is referenced at invoke time.',
+    ],
+    docs: 'https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-manage.html',
+    severity: 'medium',
+  },
+  'ai.vertex.safety_review': {
+    cloud: 'gcp', title: 'Review Vertex AI Safety Settings',
+    what: 'Vertex AI endpoints are deployed. Manually verify that safety settings (content filtering) are appropriately configured.',
+    why: 'Vertex AI models support safety settings for blocking harmful content. Without proper configuration, applications may return unsafe or non-compliant outputs.',
+    fix: [
+      'In the Vertex AI console, check each endpoint\'s safety settings.',
+      'Enable content filtering for hate, violence, sexual content, and dangerous content at appropriate severity levels.',
+      'Use the Safety Settings API to configure block thresholds for prompts and responses.',
+    ],
+    docs: 'https://cloud.google.com/vertex-ai/docs/generative-ai/learn/responsible-ai',
+    severity: 'low',
+  },
+  'ai.azure.content_filter_review': {
+    cloud: 'azure', title: 'Review Azure OpenAI Content Filters',
+    what: 'An Azure OpenAI account was found. Verify that content filters are enabled at appropriate severity levels.',
+    why: 'Azure AI Content Safety filters harmful content (hate, violence, sexual, self-harm). Filters disabled or set too low expose applications to unsafe outputs.',
+    fix: [
+      'In Azure Portal → Azure OpenAI resource → Content filtering, ensure filters are enabled.',
+      'Set severity thresholds to medium or higher for both prompts and completions.',
+      'Consider enabling jailbreak detection and PII detection for sensitive workloads.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/content-filters',
+    severity: 'low',
+  },
+  'ai.aws.unavailable': {
+    cloud: 'aws', title: 'AWS Bedrock API Unavailable',
+    what: 'Could not connect to the Bedrock API. This may be due to missing credentials, permissions, or Bedrock not being available in the region.',
+    why: 'Without Bedrock access, AI security checks cannot run. Ensure the region supports Bedrock (e.g. us-east-1) and credentials have bedrock:ListGuardrails and bedrock:ListFoundationModels.',
+    fix: [
+      'Verify AWS credentials are configured (aws configure or environment variables).',
+      'Add IAM permissions: bedrock:ListGuardrails, bedrock:ListFoundationModels.',
+      'Use a region where Bedrock is available (us-east-1, us-west-2, etc.).',
+    ],
+    docs: 'https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html',
+    severity: 'low',
+  },
+  'ai.gcp.unavailable': {
+    cloud: 'gcp', title: 'Vertex AI API Unavailable',
+    what: 'Could not initialize Vertex AI. Check credentials and project configuration.',
+    why: 'Vertex AI checks require google-cloud-aiplatform and a service account with roles/aiplatform.user.',
+    fix: [
+      'Install: pip install google-cloud-aiplatform',
+      'Set GOOGLE_APPLICATION_CREDENTIALS to your service account JSON path.',
+      'Ensure the service account has roles/aiplatform.user on the project.',
+    ],
+    docs: 'https://cloud.google.com/vertex-ai/docs/start/use-vertex-ai-api',
+    severity: 'low',
+  },
+  'ai.azure.unavailable': {
+    cloud: 'azure', title: 'Azure OpenAI API Unavailable',
+    what: 'Could not connect to Azure Cognitive Services. Check credentials and subscription.',
+    why: 'Azure OpenAI checks require azure-mgmt-cognitiveservices and a principal with Cognitive Services Reader or Contributor.',
+    fix: [
+      'Install: pip install azure-mgmt-cognitiveservices',
+      'Configure Azure credentials (DefaultAzureCredential or AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET).',
+      'Ensure the principal has Reader or Contributor on the subscription or resource group.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/cognitive-services/openai/',
+    severity: 'low',
+  },
+  'ai.gcp.sdk_missing': {
+    cloud: 'gcp', title: 'Vertex AI SDK Not Installed',
+    what: 'google-cloud-aiplatform is required for Vertex AI checks but is not installed.',
+    why: 'The AI scanner uses the Vertex AI SDK to list endpoints and verify safety configuration.',
+    fix: ['Install: pip install google-cloud-aiplatform'],
+    docs: 'https://pypi.org/project/google-cloud-aiplatform/',
+    severity: 'low',
+  },
+  'ai.azure.sdk_missing': {
+    cloud: 'azure', title: 'Azure Cognitive Services SDK Not Installed',
+    what: 'azure-mgmt-cognitiveservices is required for Azure OpenAI checks but is not installed.',
+    why: 'The AI scanner uses the Cognitive Services management client to list Azure OpenAI accounts.',
+    fix: ['Install: pip install azure-mgmt-cognitiveservices'],
+    docs: 'https://pypi.org/project/azure-mgmt-cognitiveservices/',
+    severity: 'low',
+  },
 }
 export const TOP_RECS_BY_CLOUD = {
   aws: {

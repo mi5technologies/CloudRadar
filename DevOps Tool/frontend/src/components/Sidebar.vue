@@ -202,6 +202,26 @@
         </transition>
       </div>
 
+      <!-- ── AI ── -->
+      <div class="nav-group nav-group-ai" :class="{ 'group-closed': !groups.ai && !collapsed }">
+        <button class="nav-group-header nav-group-ai-header" @click="!collapsed && toggleGroup('ai')" :class="{ clickable: !collapsed }" v-show="!collapsed">
+          <span class="nav-group-label-text">AI</span>
+          <svg class="nav-group-arrow" :class="{ open: groups.ai }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <transition name="group-slide">
+          <div class="nav-group-items" v-show="collapsed || groups.ai">
+            <router-link to="/security/ai-usage" class="nav-item nav-item-ai" :title="collapsed ? 'AI Usage Security' : ''">
+              <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a10 10 0 0110 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z"/><path d="M12 6v6l4 2"/>
+              </svg>
+              <span class="nav-label" v-show="!collapsed">AI Usage Security</span>
+            </router-link>
+          </div>
+        </transition>
+      </div>
+
       <!-- ── Tests ── -->
       <div class="nav-group nav-group-tests" :class="{ 'group-closed': !groups.tests && !collapsed }">
         <button class="nav-group-header nav-group-tests-header" @click="!collapsed && toggleGroup('tests')" :class="{ clickable: !collapsed }" v-show="!collapsed">
@@ -309,6 +329,7 @@ const groups = ref({
   governance: true,
   pentest: true,
   cost: true,
+  ai: true,
   tests: true,
 })
 
@@ -549,6 +570,8 @@ onMounted(async () => {
 .nav-group-governance-header{ border-left: 3px solid #8b5cf6; }
 .nav-group-pentest-header   { border-left: 3px solid #ef4444; }
 .nav-group-tests-header     { border-left: 3px solid #d946ef; }
+.nav-group-cost-header      { border-left: 3px solid #22c55e; }
+.nav-group-ai-header        { border-left: 3px solid #8b5cf6; }
 
 .nav-group-security-header  .nav-group-label-text { color: #7dd3fc; }
 .nav-group-audit-header     .nav-group-label-text { color: #fcd34d; }
@@ -575,6 +598,10 @@ onMounted(async () => {
 .nav-group-governance-header .nav-group-arrow{ color: #c4b5fd; }
 .nav-group-pentest-header   .nav-group-arrow { color: #fca5a5; }
 .nav-group-tests-header     .nav-group-arrow { color: #d946ef; }
+.nav-group-cost-header      .nav-group-label-text { color: #86efac; }
+.nav-group-cost-header      .nav-group-arrow { color: #86efac; }
+.nav-group-ai-header        .nav-group-label-text { color: #c4b5fd; }
+.nav-group-ai-header        .nav-group-arrow { color: #c4b5fd; }
 
 /* Group items container */
 .nav-group-items { overflow: hidden; }
@@ -644,6 +671,14 @@ onMounted(async () => {
 .nav-item-tests { color: #d946ef !important; }
 .nav-item-tests:hover { background: rgba(217,70,239,0.2) !important; color: #e879f9 !important; }
 .nav-item-tests.router-link-active { background: rgba(217,70,239,0.28) !important; color: #f0abfc !important; }
+
+.nav-group-cost .nav-item { color: #bbf7d0; }
+.nav-group-cost .nav-item:hover { background: rgba(34,197,94,0.12); color: #86efac; }
+.nav-group-cost .nav-item.router-link-active { background: rgba(34,197,94,0.18); color: #4ade80; }
+
+.nav-group-ai .nav-item { color: #ddd6fe; }
+.nav-group-ai .nav-item:hover { background: rgba(139,92,246,0.12); color: #c4b5fd; }
+.nav-group-ai .nav-item.router-link-active { background: rgba(139,92,246,0.2); color: #a78bfa; }
 
 /* Bottom: Setup + Docs */
 .sidebar-bottom {
@@ -799,6 +834,20 @@ onMounted(async () => {
 :global(.theme-light) .nav-group-tests-header .nav-group-label-text { color: #7e22ce; }
 :global(.theme-light) .nav-group-tests-header .nav-group-arrow { color: #7e22ce; }
 
+:global(.theme-light) .nav-group-cost-header {
+  background: rgba(22,163,74,0.08);
+  border-left-color: #16a34a;
+}
+:global(.theme-light) .nav-group-cost-header .nav-group-label-text { color: #15803d; }
+:global(.theme-light) .nav-group-cost-header .nav-group-arrow { color: #15803d; }
+
+:global(.theme-light) .nav-group-ai-header {
+  background: rgba(124,58,237,0.08);
+  border-left-color: #7c3aed;
+}
+:global(.theme-light) .nav-group-ai-header .nav-group-label-text { color: #6d28d9; }
+:global(.theme-light) .nav-group-ai-header .nav-group-arrow { color: #6d28d9; }
+
 /* Light theme: nav items refined */
 :global(.theme-light) .nav-group-security .nav-item:hover { background: rgba(2,132,199,0.1); color: #0284c7; }
 :global(.theme-light) .nav-group-security .nav-item.router-link-active { background: rgba(2,132,199,0.13); color: #0369a1; }
@@ -807,6 +856,10 @@ onMounted(async () => {
 :global(.theme-light) .nav-group-compliance .nav-item:hover { background: rgba(22,163,74,0.1); }
 :global(.theme-light) .nav-group-governance .nav-item:hover { background: rgba(124,58,237,0.1); }
 :global(.theme-light) .nav-group-pentest .nav-item:hover { background: rgba(220,38,38,0.1); }
+:global(.theme-light) .nav-group-cost .nav-item:hover { background: rgba(22,163,74,0.1); color: #15803d; }
+:global(.theme-light) .nav-group-cost .nav-item.router-link-active { background: rgba(22,163,74,0.13); color: #16a34a; }
+:global(.theme-light) .nav-group-ai .nav-item:hover { background: rgba(124,58,237,0.1); color: #6d28d9; }
+:global(.theme-light) .nav-group-ai .nav-item.router-link-active { background: rgba(124,58,237,0.13); color: #7c3aed; }
 :global(.theme-light) .nav-item-dashboard { color: #334155; }
 :global(.theme-light) .nav-item-dashboard:hover { background: rgba(2,132,199,0.1); color: #0369a1; }
 :global(.theme-light) .nav-item-dashboard.router-link-active { background: rgba(2,132,199,0.14); color: #0284c7; }
