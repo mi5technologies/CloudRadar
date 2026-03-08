@@ -39,6 +39,67 @@
       </button>
     </div>
 
+    <!-- ── Check Selector ── -->
+    <div class="card checks-card" v-if="!loading">
+      <div class="checks-header" @click="checksOpen = !checksOpen">
+        <div class="checks-header-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+          </svg>
+          <span class="checks-title">Configure checks</span>
+          <span class="checks-summary-badge">{{ enabledCount }} / {{ allChecks.length }} enabled</span>
+        </div>
+        <div class="checks-header-right">
+          <button class="checks-select-all" @click.stop="selectAllChecks(true)">Select all</button>
+          <button class="checks-select-all" @click.stop="selectAllChecks(false)">Deselect all</button>
+          <svg class="checks-arrow" :class="{ open: checksOpen }" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+
+      <transition name="panel-slide">
+        <div v-if="checksOpen" class="checks-body">
+          <p class="checks-hint muted">
+            Deselect any check you want to deliberately skip (e.g. you know a stopped instance is intentional).
+            Your selection is remembered per cloud.
+          </p>
+          <div v-for="cat in CHECK_CATEGORIES" :key="cat.id" class="check-cat-block">
+            <div class="check-cat-header">
+              <label class="check-cat-toggle">
+                <input type="checkbox"
+                  :checked="isCatAllSelected(cat.id)"
+                  :indeterminate.prop="isCatIndeterminate(cat.id)"
+                  @change="toggleCategory(cat.id, $event.target.checked)"
+                />
+                <span class="cat-dot" :style="{ background: cat.color }"></span>
+                <span class="check-cat-label">{{ cat.label }}</span>
+                <span class="check-cat-count muted">{{ checksForCloud(cat.id).length }} check{{ checksForCloud(cat.id).length !== 1 ? 's' : '' }}</span>
+              </label>
+            </div>
+            <div class="check-grid">
+              <label v-for="chk in checksForCloud(cat.id)" :key="chk.rule_id" class="check-item"
+                :class="{ 'check-item-disabled': !enabledRules.has(chk.rule_id) }">
+                <input type="checkbox"
+                  :checked="enabledRules.has(chk.rule_id)"
+                  @change="toggleRule(chk.rule_id, $event.target.checked)"
+                />
+                <div class="check-item-body">
+                  <div class="check-item-top">
+                    <span class="check-item-name">{{ chk.title }}</span>
+                    <span class="sev-badge" :class="'sev-' + chk.severity">{{ chk.severity }}</span>
+                    <span v-if="chk.quickWin" class="qw-tag">⚡ quick win</span>
+                    <span v-if="chk.est_usd > 0" class="est-usd">~${{ chk.est_usd }}/mo</span>
+                  </div>
+                  <div class="check-item-desc muted">{{ chk.desc }}</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </div>
+
     <!-- Error -->
     <div v-if="error" class="card error-card">
       <p style="color: var(--error); margin:0">{{ error }}</p>
@@ -285,15 +346,67 @@ const CLOUDS = [
 ]
 
 const CATEGORIES = [
-  { id: 'idle',        label: 'Idle resources',    color: '#ef4444' },
-  { id: 'tagging',    label: 'Tagging gaps',       color: '#eab308' },
-  { id: 'rightsizing',label: 'Rightsizing',        color: '#6366f1' },
-  { id: 'reservation',label: 'Reserved pricing',  color: '#0ea5e9' },
+  { id: 'idle',        label: 'Idle resources',   color: '#ef4444' },
+  { id: 'tagging',    label: 'Tagging gaps',      color: '#eab308' },
+  { id: 'rightsizing',label: 'Rightsizing',       color: '#6366f1' },
+  { id: 'reservation',label: 'Reserved pricing', color: '#0ea5e9' },
 ]
+
+const CHECK_CATEGORIES = CATEGORIES
 
 const CATEGORY_LABEL = {
   idle: 'Idle', tagging: 'Tagging', rightsizing: 'Rightsizing', reservation: 'Reserved',
 }
+
+// Full check catalogue — one entry per rule_id
+const ALL_CHECKS = [
+  // ── AWS ──────────────────────────────────────────────────────────────────
+  { rule_id: 'cost.ebs_unattached',     cloud: 'aws', cat: 'idle',        severity: 'medium', quickWin: true,  est_usd: 8,
+    title: 'Unattached EBS Volumes',
+    desc:  'EBS volumes in "available" state — not attached to any instance — still incur ~$0.10/GB/month in storage charges.' },
+  { rule_id: 'cost.ec2_stopped',        cloud: 'aws', cat: 'idle',        severity: 'medium', quickWin: true,  est_usd: 30,
+    title: 'Stopped EC2 Instances',
+    desc:  'Stopped instances continue to bill for EBS storage and any attached Elastic IPs. They do not incur compute charges.' },
+  { rule_id: 'cost.rds_stopped',        cloud: 'aws', cat: 'idle',        severity: 'medium', quickWin: true,  est_usd: 60,
+    title: 'Stopped RDS Instances',
+    desc:  'Stopped RDS instances still bill for storage and IOPS. AWS auto-restarts them after 7 days.' },
+  { rule_id: 'cost.ec2_on_demand_large',cloud: 'aws', cat: 'reservation', severity: 'low',    quickWin: false, est_usd: 200,
+    title: 'Large On-Demand Instances (Savings Plan opportunity)',
+    desc:  'Large instance families (M5/R5/C5 4xl+) running 24/7 on-demand cost 30–60 % more than a 1-year Reserved Instance or Savings Plan.' },
+  { rule_id: 'cost.lambda_oversized',   cloud: 'aws', cat: 'rightsizing', severity: 'low',    quickWin: true,  est_usd: 5,
+    title: 'Oversized Lambda Functions (≥ 8 GB memory)',
+    desc:  'Lambda is billed per GB-second. Functions with 8 GB+ configured are likely over-provisioned unless processing very large payloads.' },
+  { rule_id: 'cost.ec2_missing_tags',   cloud: 'aws', cat: 'tagging',     severity: 'low',    quickWin: true,  est_usd: 0,
+    title: 'EC2 Instances Missing Cost-Allocation Tags',
+    desc:  'Missing Owner, CostCenter, Environment, or Project tags prevents per-team cost attribution in AWS Cost Explorer.' },
+  { rule_id: 'cost.rds_missing_tags',   cloud: 'aws', cat: 'tagging',     severity: 'low',    quickWin: true,  est_usd: 0,
+    title: 'RDS Instances Missing Cost-Allocation Tags',
+    desc:  'RDS is often a top-3 AWS cost driver. Missing tags make it impossible to attribute database costs to an application or team.' },
+  { rule_id: 'cost.s3_missing_tags',    cloud: 'aws', cat: 'tagging',     severity: 'low',    quickWin: true,  est_usd: 0,
+    title: 'S3 Buckets Missing Cost-Allocation Tags',
+    desc:  'S3 storage costs are impossible to split across teams without bucket-level cost-allocation tags.' },
+
+  // ── GCP ──────────────────────────────────────────────────────────────────
+  { rule_id: 'cost.gce_terminated',     cloud: 'gcp', cat: 'idle',    severity: 'medium', quickWin: true,  est_usd: 25,
+    title: 'Terminated GCE Instances (disks still billing)',
+    desc:  'TERMINATED GCE instances keep their persistent disks attached, costing $0.04–$0.17/GB/month.' },
+  { rule_id: 'cost.gce_missing_labels', cloud: 'gcp', cat: 'tagging', severity: 'low',    quickWin: true,  est_usd: 0,
+    title: 'GCE Instances Missing Cost Labels',
+    desc:  'GCP uses labels (owner, environment, cost-center) for billing export attribution in BigQuery. Missing labels break cost reporting.' },
+  { rule_id: 'cost.gcs_missing_labels', cloud: 'gcp', cat: 'tagging', severity: 'low',    quickWin: true,  est_usd: 0,
+    title: 'GCS Buckets Missing Cost Labels',
+    desc:  'Cloud Storage costs are tracked by labels in GCP Billing Export. Buckets without labels cannot be attributed to teams.' },
+
+  // ── Azure ─────────────────────────────────────────────────────────────────
+  { rule_id: 'cost.azure_vm_deallocated', cloud: 'azure', cat: 'idle',    severity: 'medium', quickWin: true,  est_usd: 20,
+    title: 'Deallocated Azure VMs (managed disks still billing)',
+    desc:  'Deallocated VMs stop compute charges but managed disks ($5–$20+/disk/month) continue to bill.' },
+  { rule_id: 'cost.azure_missing_tags',   cloud: 'azure', cat: 'tagging', severity: 'low',    quickWin: true,  est_usd: 0,
+    title: 'Azure Resources Missing Cost-Allocation Tags',
+    desc:  'Azure Cost Management relies on tags (Owner, CostCenter, Environment, Project) to break down subscription costs by team.' },
+]
+
+const allChecks = ALL_CHECKS
 
 const CLOUD_EMOJI = { aws: '🟠', gcp: '🔵', azure: '🔷' }
 const CLOUD_LABEL = { aws: 'AWS', gcp: 'Google Cloud', azure: 'Azure' }
@@ -304,10 +417,78 @@ const error         = ref('')
 const selectedFinding = ref(null)
 const filterCat     = ref('')
 const filterSev     = ref('')
+const checksOpen    = ref(true)
 
 // Per-cloud cached results
 const resultsByCloud = ref({ aws: null, gcp: null, azure: null })
 const summaryByCloud = ref({ aws: null, gcp: null, azure: null })
+
+// Enabled rules — start with ALL enabled; persisted to localStorage
+const _storageKey = () => `cspm_cost_enabled_${selectedCloud.value}`
+const enabledRules = ref(new Set(ALL_CHECKS.map(c => c.rule_id)))
+
+function _loadEnabled(cloud) {
+  try {
+    const raw = localStorage.getItem(`cspm_cost_enabled_${cloud}`)
+    if (raw) {
+      const arr = JSON.parse(raw)
+      return new Set(arr)
+    }
+  } catch (_) {}
+  // Default: all checks for this cloud enabled
+  return new Set(ALL_CHECKS.filter(c => c.cloud === cloud).map(c => c.rule_id))
+}
+
+function _saveEnabled() {
+  try {
+    localStorage.setItem(_storageKey(), JSON.stringify([...enabledRules.value]))
+  } catch (_) {}
+}
+
+function toggleRule(ruleId, checked) {
+  const set = new Set(enabledRules.value)
+  if (checked) set.add(ruleId); else set.delete(ruleId)
+  enabledRules.value = set
+  _saveEnabled()
+}
+
+function toggleCategory(catId, checked) {
+  const set = new Set(enabledRules.value)
+  checksForCloud(catId).forEach(c => {
+    if (checked) set.add(c.rule_id); else set.delete(c.rule_id)
+  })
+  enabledRules.value = set
+  _saveEnabled()
+}
+
+function selectAllChecks(checked) {
+  const cloudChecks = ALL_CHECKS.filter(c => c.cloud === selectedCloud.value)
+  const set = new Set(enabledRules.value)
+  cloudChecks.forEach(c => {
+    if (checked) set.add(c.rule_id); else set.delete(c.rule_id)
+  })
+  enabledRules.value = set
+  _saveEnabled()
+}
+
+// checks relevant to selected cloud, filtered by category
+function checksForCloud(catId) {
+  return ALL_CHECKS.filter(c => c.cloud === selectedCloud.value && c.cat === catId)
+}
+
+function isCatAllSelected(catId) {
+  return checksForCloud(catId).every(c => enabledRules.value.has(c.rule_id))
+}
+
+function isCatIndeterminate(catId) {
+  const checks = checksForCloud(catId)
+  const n = checks.filter(c => enabledRules.value.has(c.rule_id)).length
+  return n > 0 && n < checks.length
+}
+
+const enabledCount = computed(() => {
+  return ALL_CHECKS.filter(c => c.cloud === selectedCloud.value && enabledRules.value.has(c.rule_id)).length
+})
 
 const cloudLabel = computed(() => CLOUD_LABEL[selectedCloud.value])
 const cloudEmoji = computed(() => CLOUD_EMOJI[selectedCloud.value])
@@ -353,6 +534,7 @@ function tagComplianceColor(row) {
 function selectCloud(id) {
   selectedCloud.value = id
   try { localStorage.setItem('cspm_cloud', id) } catch (_) {}
+  enabledRules.value = _loadEnabled(id)
   selectedFinding.value = null
   filterCat.value = ''
   filterSev.value = ''
@@ -366,10 +548,14 @@ async function runAnalysis() {
 
   try {
     const region = localStorage.getItem('cspm_region') || 'us-east-1'
+    // Collect disabled rule IDs to send as skip_rules
+    const cloudChecks = ALL_CHECKS.filter(c => c.cloud === cloud)
+    const skipRules = cloudChecks.filter(c => !enabledRules.value.has(c.rule_id)).map(c => c.rule_id)
+
     const res = await fetch('/api/cost', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cloud, region }),
+      body: JSON.stringify({ cloud, region, skip_rules: skipRules }),
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
@@ -402,6 +588,7 @@ function exportCSV() {
 
 onMounted(() => {
   try { selectedCloud.value = localStorage.getItem('cspm_cloud') || 'aws' } catch (_) {}
+  enabledRules.value = _loadEnabled(selectedCloud.value)
 })
 </script>
 
@@ -523,6 +710,62 @@ h1 { margin: 0 0 6px; font-size: 1.7rem; font-weight: 700; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
 
+/* ── Check Selector ── */
+.checks-card { margin-bottom: 22px; padding: 0; overflow: hidden; }
+.checks-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer; user-select: none;
+  transition: background 0.12s;
+}
+.checks-header:hover { background: var(--bg-el-lo); }
+.checks-header-left { display: flex; align-items: center; gap: 10px; }
+.checks-header-right { display: flex; align-items: center; gap: 8px; }
+.checks-title { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+.checks-summary-badge { padding: 2px 9px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; background: rgba(14,165,233,0.12); color: var(--accent); }
+.checks-select-all {
+  padding: 4px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 600;
+  background: var(--bg-el); border: 1px solid var(--border); color: var(--text-muted);
+  cursor: pointer; transition: all 0.12s;
+}
+.checks-select-all:hover { background: var(--bg-el-hi); color: var(--text); }
+.checks-arrow { transition: transform 0.2s; flex-shrink: 0; color: var(--text-muted); }
+.checks-arrow.open { transform: rotate(180deg); }
+
+.checks-body { padding: 0 18px 18px; border-top: 1px solid var(--border); }
+.checks-hint { font-size: 0.82rem; margin: 12px 0 16px; }
+
+/* Category block */
+.check-cat-block { margin-bottom: 18px; }
+.check-cat-header { margin-bottom: 8px; }
+.check-cat-toggle {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 0.85rem; font-weight: 600; color: var(--text);
+}
+.check-cat-toggle input[type="checkbox"] { cursor: pointer; width: 15px; height: 15px; flex-shrink: 0; }
+.check-cat-label { font-weight: 700; }
+.check-cat-count { font-weight: 400; font-size: 0.78rem; }
+
+/* Check grid */
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; padding-left: 24px; }
+.check-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border-radius: 9px; border: 1px solid var(--border); background: var(--bg-el-xlo);
+  cursor: pointer; transition: all 0.12s;
+}
+.check-item:hover { background: var(--bg-el); border-color: rgba(14,165,233,0.2); }
+.check-item-disabled { opacity: 0.45; }
+.check-item input[type="checkbox"] { flex-shrink: 0; margin-top: 3px; cursor: pointer; width: 14px; height: 14px; }
+.check-item-body { flex: 1; min-width: 0; }
+.check-item-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 3px; }
+.check-item-name { font-size: 0.83rem; font-weight: 600; color: var(--text); }
+.check-item-desc { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }
+.qw-tag { padding: 1px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; background: rgba(34,197,94,0.12); color: #22c55e; }
+.est-usd { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+
+.panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.2s ease; overflow: hidden; }
+.panel-slide-enter-from, .panel-slide-leave-to { opacity: 0; max-height: 0; }
+.panel-slide-enter-to, .panel-slide-leave-from { max-height: 1200px; }
+
 /* Light mode overrides */
 :global(.theme-light) .cloud-tab { background: #fff !important; border-color: rgba(71,85,105,0.2) !important; color: #475569 !important; }
 :global(.theme-light) .cloud-tab:hover { color: #0f172a !important; }
@@ -537,4 +780,9 @@ h1 { margin: 0 0 6px; font-size: 1.7rem; font-weight: 700; }
 :global(.theme-light) .cat-reservation { background: rgba(2,132,199,0.1)  !important; color: #0369a1 !important; }
 :global(.theme-light) .filter-select { background: #fff !important; color: #0f172a !important; border-color: rgba(71,85,105,0.25) !important; }
 :global(.theme-light) .savings-callout { background: rgba(34,197,94,0.06) !important; border-color: rgba(22,163,74,0.3) !important; }
+:global(.theme-light) .check-item { background: rgba(255,255,255,0.85) !important; border-color: rgba(71,85,105,0.15) !important; }
+:global(.theme-light) .check-item:hover { background: #fff !important; border-color: rgba(2,132,199,0.25) !important; }
+:global(.theme-light) .checks-select-all { background: #fff !important; border-color: rgba(71,85,105,0.2) !important; color: #475569 !important; }
+:global(.theme-light) .checks-select-all:hover { background: rgba(2,132,199,0.06) !important; color: #0369a1 !important; }
+:global(.theme-light) .qw-tag { background: rgba(34,197,94,0.12) !important; color: #15803d !important; }
 </style>

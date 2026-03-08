@@ -28,8 +28,8 @@
           <p class="lead">
             CloudRadar is a multi-cloud Cloud Security Posture Management (CSPM) platform that
             continuously scans AWS, Google Cloud, and Azure environments for misconfigurations,
-            vulnerabilities, compliance gaps, and attack paths — and provides actionable remediation
-            guidance for every finding.
+            vulnerabilities, compliance gaps, attack paths, and cost waste — and provides actionable
+            remediation guidance for every finding.
           </p>
           <div class="info-box">
             <strong>Quick start:</strong> Go to <strong>Welcome</strong> → select your cloud → configure credentials → run a <strong>Security Scan</strong>.
@@ -407,6 +407,140 @@
           </p>
         </section>
 
+        <!-- ───── Cost Optimisation ───── -->
+        <section id="cost-optimisation">
+          <h2>Cost Optimisation</h2>
+          <p>
+            The Cost Optimisation page identifies wasteful resources, tagging gaps, and over-provisioned assets
+            across AWS, Google Cloud, and Azure. It helps you reduce cloud spend by flagging idle resources
+            that still incur charges, resources missing cost-allocation tags, and instances that could benefit
+            from reserved pricing or rightsizing.
+          </p>
+
+          <h3 id="cost-how">How to use</h3>
+          <ol>
+            <li>Go to <strong>Cost → Cost optimisation</strong> in the sidebar.</li>
+            <li>Select the cloud provider (AWS, Google Cloud, or Azure) via the tabs.</li>
+            <li>Expand the <strong>Configure checks</strong> panel to see all available cost checks.</li>
+            <li>Deselect any check you want to deliberately skip (e.g. you know a stopped instance is intentional).</li>
+            <li>Click <strong>Run analysis</strong>. The tool reuses the last scan if available, or runs a fresh discovery.</li>
+            <li>Review the KPI cards, findings table, tagging compliance report, and estimated annual savings.</li>
+            <li>Export CSV or click a finding to see the full remediation steps.</li>
+          </ol>
+          <p>
+            Your check selection is persisted per cloud in <code>localStorage</code> — so if you deselect
+            "Stopped EC2 Instances" for AWS, it stays deselected next time you visit.
+          </p>
+
+          <h3 id="cost-categories">Categories</h3>
+          <ul>
+            <li><strong>Idle resources</strong> — Provisioned but not in use (stopped VMs, unattached disks, etc.). These directly waste money.</li>
+            <li><strong>Tagging gaps</strong> — Resources missing cost-allocation tags / labels. Without tags, you cannot attribute spend to teams or projects in billing dashboards.</li>
+            <li><strong>Rightsizing</strong> — Instances that appear over-provisioned (e.g. Lambda with 8 GB memory for a simple function).</li>
+            <li><strong>Reserved pricing</strong> — Large on-demand instances that would be 30–60 % cheaper on a 1-year Reserved Instance or Savings Plan.</li>
+          </ul>
+
+          <h3 id="cost-checks-aws">AWS cost checks</h3>
+          <p>Each check below runs against your discovered AWS assets. Deselect any you want to skip.</p>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Check</span>
+              <span>What it does &amp; why it matters</span>
+              <span>Severity</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.ebs_unattached</code></span>
+              <span>Flags EBS volumes in "available" state — not attached to any EC2 instance. Unattached volumes cost ~$0.10/GB/month with no benefit. A 1 TB volume left unattached for a year wastes ~$1,200.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.ec2_stopped</code></span>
+              <span>Flags stopped EC2 instances. While compute stops billing, EBS storage and any Elastic IPs continue to charge. If the instance is not needed, terminate it to stop all costs.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.rds_stopped</code></span>
+              <span>Flags stopped RDS instances. Storage and IOPS still bill. AWS auto-restarts RDS after 7 days, so a "stopped" RDS is not a long-term cost saver — delete it if unused.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.ec2_on_demand_large</code></span>
+              <span>Flags large instance families (M5/R5/C5 4xl+) running 24/7 on on-demand pricing. A 1-year Reserved Instance or Compute Savings Plan typically saves 30–60 %. Critical for steady-state workloads.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.lambda_oversized</code></span>
+              <span>Flags Lambda functions with ≥ 8 GB memory. Lambda bills per GB-second — over-provisioning memory drives unnecessary cost. Use AWS Lambda Power Tuning to find the optimal size.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.ec2_missing_tags</code></span>
+              <span>Flags EC2 instances missing Owner, CostCenter, Environment, or Project tags. Without cost-allocation tags, AWS Cost Explorer cannot split spend by team — chargeback and optimisation by business unit become impossible.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.rds_missing_tags</code></span>
+              <span>RDS is often a top-3 AWS cost driver. Missing tags prevent attributing database costs to applications or teams. Essential for FinOps and showback/chargeback.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.s3_missing_tags</code></span>
+              <span>S3 storage can be one of the largest AWS costs. Untagged buckets make it impossible to see which team or project owns the spend. Add tags and enable Cost Allocation Tags in Billing.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+          </div>
+
+          <h3 id="cost-checks-gcp">Google Cloud cost checks</h3>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Check</span>
+              <span>What it does &amp; why it matters</span>
+              <span>Severity</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.gce_terminated</code></span>
+              <span>Flags GCE instances in TERMINATED state. Their persistent disks remain attached and continue to bill ($0.04–$0.17/GB/month). Delete the instance and disks if no longer needed.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.gce_missing_labels</code></span>
+              <span>Flags GCE instances missing owner, environment, or cost-center labels. GCP uses labels (not tags) for cost attribution in Billing Export and BigQuery. Without labels, spend cannot be split by team.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.gcs_missing_labels</code></span>
+              <span>Flags GCS buckets missing cost labels. Cloud Storage costs are tracked by labels in GCP Billing Export. Untagged buckets cannot be attributed to teams in cost reports.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+          </div>
+
+          <h3 id="cost-checks-azure">Azure cost checks</h3>
+          <div class="checks-table">
+            <div class="checks-header">
+              <span>Check</span>
+              <span>What it does &amp; why it matters</span>
+              <span>Severity</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.azure_vm_deallocated</code></span>
+              <span>Flags deallocated Azure VMs. Compute charges stop, but managed disks ($5–$20+/month per disk) continue to bill. Delete the VM and disks if the workload is no longer needed.</span>
+              <span class="sev-badge medium">Medium</span>
+            </div>
+            <div class="checks-row">
+              <span><code>cost.azure_missing_tags</code></span>
+              <span>Flags Azure VMs and Storage Accounts missing Owner, CostCenter, Environment, or Project tags. Azure Cost Management uses tags for subscription-level cost breakdowns. Without tags, FinOps and chargeback are blocked.</span>
+              <span class="sev-badge low">Low</span>
+            </div>
+          </div>
+
+          <h3 id="cost-api">API</h3>
+          <p>
+            Cost analysis is triggered via <code>POST /api/cost</code> with a JSON body:
+            <code>{ "cloud": "aws" | "gcp" | "azure", "region": "us-east-1", "skip_rules": ["cost.ec2_stopped", ...] }</code>.
+            The <code>skip_rules</code> array lists rule IDs to exclude from the results (for checks the user deliberately disabled).
+          </p>
+        </section>
+
         <!-- ───── Scan History ───── -->
         <section id="scan-history">
           <h2>Scan History</h2>
@@ -609,6 +743,17 @@
         <section id="changelog">
           <h2>Changelog</h2>
           <div class="changelog-entry">
+            <div class="cl-version">v2.5</div>
+            <ul>
+              <li>Cost Optimisation page — detect idle resources, tagging gaps, rightsizing, and reserved-pricing opportunities across AWS, GCP, and Azure</li>
+              <li>14 cost checks: 8 AWS (EBS unattached, EC2/RDS stopped, Lambda oversized, missing tags on EC2/RDS/S3, large on-demand), 3 GCP (GCE terminated, missing labels on GCE/GCS), 2 Azure (VM deallocated, missing tags)</li>
+              <li>Configure checks panel — select/deselect individual checks or entire categories; selection persisted per cloud in localStorage</li>
+              <li>Cost API: <code>POST /api/cost</code> with <code>skip_rules</code> to exclude deliberately skipped checks</li>
+              <li>Cost scanner unit tests (<code>test_cost_scanner</code>) — 35 tests covering all rules across all clouds</li>
+              <li>Documentation: full Cost Optimisation section with per-check descriptions and importance</li>
+            </ul>
+          </div>
+          <div class="changelog-entry">
             <div class="cl-version">v2.4</div>
             <ul>
               <li>CloudFront security scanner — 8 new checks: HTTP allowed, no WAF, outdated TLS, missing security headers, HSTS, S3 origin without OAC, logging disabled, geo-restriction</li>
@@ -716,6 +861,13 @@ const toc = [
   { id: 'compliance',             label: 'Compliance & gap analysis' },
   { id: 'attack-paths',           label: 'Attack Paths' },
   { id: 'governance',             label: 'Governance' },
+  { id: 'cost-optimisation',      label: 'Cost Optimisation' },
+  { id: 'cost-how',               label: '  How to use', sub: true },
+  { id: 'cost-categories',        label: '  Categories', sub: true },
+  { id: 'cost-checks-aws',        label: '  AWS cost checks', sub: true },
+  { id: 'cost-checks-gcp',        label: '  Google Cloud cost checks', sub: true },
+  { id: 'cost-checks-azure',      label: '  Azure cost checks', sub: true },
+  { id: 'cost-api',               label: '  API', sub: true },
   { id: 'scan-history',           label: 'Scan History' },
   { id: 'notifications',          label: 'Notifications' },
   { id: 'scheduled-scans',        label: 'Scheduled Scans' },

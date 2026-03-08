@@ -413,6 +413,7 @@ async def api_cost(request: Request) -> dict[str, Any]:
     if cloud not in ("aws", "gcp", "azure"):
         cloud = "aws"
     region = (body.get("region") or "us-east-1").strip() or "us-east-1"
+    skip_rules: list[str] = body.get("skip_rules") or []
 
     # Try to reuse last scan assets first to avoid a slow re-scan
     last = jobs_module.get_last_scan_result()
@@ -430,6 +431,25 @@ async def api_cost(request: Request) -> dict[str, Any]:
         assets = scan.get("assets", {}) or {}
 
     result = scan_cost(assets=assets, cloud=cloud)
+
+    # Filter out any rules the user deliberately skipped
+    if skip_rules:
+        skip_set = set(skip_rules)
+        result["findings"] = [f for f in result["findings"] if f.get("rule_id") not in skip_set]
+        # Recompute summary counts after filtering
+        findings = result["findings"]
+        by_cat: dict[str, int] = {}
+        total_waste = 0.0
+        for f in findings:
+            cat = f.get("category", "other")
+            by_cat[cat] = by_cat.get(cat, 0) + 1
+            total_waste += f.get("estimated_monthly_usd") or 0
+        result["summary"]["total_findings"] = len(findings)
+        result["summary"]["total_waste_items"] = len([f for f in findings if f.get("category") != "tagging"])
+        result["summary"]["estimated_monthly_waste_usd"] = round(total_waste, 2)
+        result["summary"]["by_category"] = by_cat
+        result["summary"]["skipped_rules"] = list(skip_set)
+
     return result
 
 
