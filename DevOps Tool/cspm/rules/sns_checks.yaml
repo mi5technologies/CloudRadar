@@ -1,0 +1,15 @@
+rules:
+  - id: sns_not_encrypted
+    resource_type: sns
+    category: STORAGE
+    severity: medium
+    title: SNS topic should be encrypted with KMS
+    condition: {op: false, key: has_kms}
+
+  - id: sns_public_policy
+    resource_type: sns
+    category: IDENTITY
+    severity: critical
+    title: SNS topic should not allow public access
+    condition: {op: true, key: public_policy}
+    required: true

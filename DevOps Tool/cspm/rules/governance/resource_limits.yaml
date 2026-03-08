@@ -1,0 +1,11 @@
+# Resource limits / forbidden configs
+id: forbidden_instance_type
+resource_type: ec2
+category: GOVERNANCE
+severity: medium
+title: Instance type not allowed
+description: EC2 instance type is in forbidden list
+condition:
+  op: true
+  key: instance_type_forbidden
+required: false

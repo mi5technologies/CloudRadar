@@ -1,0 +1,8 @@
+# Fail when ECR image has critical/high CVEs (used by vulnerability_scanner findings)
+id: ecr_critical_cve
+resource_type: ecr
+category: VULNERABILITY
+severity: critical
+title: ECR image has critical vulnerabilities
+description: Container image has critical or high CVE findings
+required: false

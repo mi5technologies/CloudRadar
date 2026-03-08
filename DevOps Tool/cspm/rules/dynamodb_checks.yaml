@@ -1,0 +1,22 @@
+rules:
+  - id: dynamodb_not_encrypted
+    resource_type: dynamodb
+    category: STORAGE
+    severity: medium
+    title: DynamoDB table should be encrypted with a CMK
+    description: The DynamoDB table does not have server-side encryption enabled with a customer-managed key
+    condition:
+      op: false
+      key: encryption_enabled
+    required: false
+
+  - id: dynamodb_pitr_disabled
+    resource_type: dynamodb
+    category: STORAGE
+    severity: medium
+    title: DynamoDB table should have point-in-time recovery enabled
+    description: PITR is not enabled; accidental deletes or overwrites cannot be recovered
+    condition:
+      op: false
+      key: pitr_enabled
+    required: false

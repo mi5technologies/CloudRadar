@@ -1,0 +1,10 @@
+id: lambda_timeout
+resource_type: lambda
+category: SERVERLESS
+severity: low
+title: Lambda should have reasonable timeout
+description: Lambda timeout exceeds 5 minutes
+condition:
+  op: true
+  key: timeout_high
+required: false

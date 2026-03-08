@@ -1,0 +1,44 @@
+rules:
+  - id: ecs_privileged_container
+    resource_type: ecs_task_def
+    category: COMPUTE
+    severity: critical
+    title: ECS task definition should not run privileged containers
+    description: One or more containers in the task definition have privileged mode enabled
+    condition:
+      op: true
+      key: privileged_containers
+    required: false
+
+  - id: ecs_no_logging
+    resource_type: ecs_task_def
+    category: COMPUTE
+    severity: medium
+    title: ECS containers should have logging configured
+    description: One or more containers in the task definition do not have log configuration
+    condition:
+      op: false
+      key: logging_enabled
+    required: false
+
+  - id: ecs_root_user
+    resource_type: ecs_task_def
+    category: COMPUTE
+    severity: high
+    title: ECS containers should not run as root
+    description: One or more containers in the task definition run as root or without a non-root user specified
+    condition:
+      op: true
+      key: root_user
+    required: false
+
+  - id: ecs_container_insights_disabled
+    resource_type: ecs_cluster
+    category: COMPUTE
+    severity: low
+    title: ECS Container Insights should be enabled
+    description: Container Insights is not enabled on the ECS cluster; metrics and logs are not collected
+    condition:
+      op: false
+      key: container_insights_enabled
+    required: false

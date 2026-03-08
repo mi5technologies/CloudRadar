@@ -1,0 +1,33 @@
+rules:
+  - id: eks_public_api_endpoint
+    resource_type: eks
+    category: COMPUTE
+    severity: high
+    title: EKS API server endpoint should not be publicly accessible to all
+    description: EKS cluster API server is publicly accessible without IP restrictions (0.0.0.0/0)
+    condition:
+      op: true
+      key: public_access_open
+    required: false
+
+  - id: eks_logging_disabled
+    resource_type: eks
+    category: COMPUTE
+    severity: medium
+    title: EKS control plane logging should be enabled
+    description: No EKS control plane log types are enabled; audit trail is missing
+    condition:
+      op: false
+      key: logging_enabled
+    required: false
+
+  - id: eks_secrets_not_encrypted
+    resource_type: eks
+    category: COMPUTE
+    severity: high
+    title: EKS secrets should be encrypted with KMS
+    description: EKS cluster does not have envelope encryption configured for Kubernetes secrets
+    condition:
+      op: false
+      key: secrets_encryption
+    required: false

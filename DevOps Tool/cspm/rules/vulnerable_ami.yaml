@@ -1,0 +1,11 @@
+# Known vulnerable or non-approved AMI
+id: vulnerable_ami
+resource_type: ec2
+category: VULNERABILITY
+severity: high
+title: EC2 uses vulnerable or unapproved AMI
+description: AMI is not in allowlist or has known vulnerabilities
+condition:
+  op: true
+  key: ami_vulnerable
+required: false

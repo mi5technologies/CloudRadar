@@ -1,0 +1,44 @@
+rules:
+  - id: cloudtrail_logging_disabled
+    resource_type: cloudtrail
+    category: AUDIT
+    severity: critical
+    title: CloudTrail logging must be enabled
+    description: CloudTrail trail is not actively logging API calls
+    condition:
+      op: false
+      key: logging_enabled
+    required: true
+
+  - id: cloudtrail_not_multi_region
+    resource_type: cloudtrail
+    category: AUDIT
+    severity: high
+    title: CloudTrail trail should be multi-region
+    description: CloudTrail trail does not cover all regions; events may be missed
+    condition:
+      op: false
+      key: is_multi_region
+    required: true
+
+  - id: cloudtrail_log_validation_disabled
+    resource_type: cloudtrail
+    category: AUDIT
+    severity: high
+    title: CloudTrail log file validation must be enabled
+    description: Log file validation is off; tampering cannot be detected
+    condition:
+      op: false
+      key: log_file_validation_enabled
+    required: true
+
+  - id: cloudtrail_no_cloudwatch
+    resource_type: cloudtrail
+    category: AUDIT
+    severity: medium
+    title: CloudTrail should integrate with CloudWatch Logs
+    description: Trail is not sending events to CloudWatch Logs for alerting
+    condition:
+      op: false
+      key: cloudwatch_integrated
+    required: false

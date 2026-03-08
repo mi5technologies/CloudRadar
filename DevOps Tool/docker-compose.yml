@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  cloudradar:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+      # Uncomment and set credentials below or use IAM role
+      # - AWS_ACCESS_KEY_ID=
+      # - AWS_SECRET_ACCESS_KEY=
+      # - GOOGLE_CLOUD_PROJECT=
+      # - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json
+      # - AZURE_SUBSCRIPTION_ID=
+      # - AZURE_TENANT_ID=
+      # - AZURE_CLIENT_ID=
+      # - AZURE_CLIENT_SECRET=
+    volumes:
+      - cloudradar-data:/data
+      - ./config.yaml:/app/config.yaml:ro
+      # - ./gcp-key.json:/secrets/gcp-key.json:ro  # Optional GCP service account
+    restart: unless-stopped
+
+volumes:
+  cloudradar-data:

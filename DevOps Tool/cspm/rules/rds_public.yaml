@@ -1,0 +1,10 @@
+id: rds_public
+resource_type: rds
+category: DATABASE
+severity: high
+title: RDS should not be publicly accessible
+description: RDS instance is publicly accessible
+condition:
+  op: true
+  key: publicly_accessible
+required: true

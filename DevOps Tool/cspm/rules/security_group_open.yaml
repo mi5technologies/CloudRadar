@@ -1,0 +1,10 @@
+id: security_group_open_world
+resource_type: security_group
+category: NETWORK
+severity: high
+title: Security group should not allow 0.0.0.0/0 on sensitive ports
+description: Security group allows unrestricted access on SSH/RDP/DB ports
+condition:
+  op: false
+  key: open_to_world
+required: false

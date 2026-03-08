@@ -1,0 +1,29 @@
+rules:
+  - id: azure_vm_public_ip
+    resource_type: azure_vm
+    category: COMPUTE
+    severity: high
+    title: Azure VM has a public IP
+    condition: {op: true, key: has_public_ip}
+
+  - id: azure_storage_public_blob
+    resource_type: azure_storage
+    category: STORAGE
+    severity: critical
+    title: Azure Storage Account allows public blob access
+    condition: {op: true, key: allow_blob_public_access}
+    required: true
+
+  - id: azure_storage_no_https
+    resource_type: azure_storage
+    category: NETWORK
+    severity: high
+    title: Azure Storage Account should enforce HTTPS only
+    condition: {op: false, key: https_only}
+
+  - id: azure_nsg_open_world
+    resource_type: azure_nsg
+    category: NETWORK
+    severity: high
+    title: Azure NSG allows inbound traffic from any source
+    condition: {op: true, key: has_open_inbound}

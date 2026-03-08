@@ -1,0 +1,10 @@
+id: iam_admin_policy
+resource_type: iam_role
+category: IDENTITY
+severity: high
+title: IAM role should not have admin policy
+description: Role has AdministratorAccess or equivalent
+condition:
+  op: false
+  key: has_admin_policy
+required: false

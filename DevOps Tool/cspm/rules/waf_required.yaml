@@ -1,0 +1,11 @@
+# WAF required for public-facing load balancers and APIs
+id: waf_required
+resource_type: alb
+category: WAF
+severity: high
+title: Public ALB must have WAF attached
+description: Internet-facing ALB does not have AWS WAF attached
+condition:
+  op: false
+  key: waf_attached
+required: true

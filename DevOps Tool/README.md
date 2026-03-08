@@ -1,0 +1,256 @@
+# CloudRadar – DevOps Security Platform
+
+Multi-cloud Security Posture Management (CSPM) tool for security scanning, audit, governance, change detection, and basic pen testing.
+
+## Quick start
+
+```bash
+# Install
+pip install -e .
+cd frontend && npm install && npm run build
+
+# Run (from project root)
+python -m cspm.cli ui --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000** → choose **AWS**, **GCP**, or **Azure** → complete Setup (or “Setup later”) → use the Dashboard to run scans and reports.
+
+## Features
+
+- **Multi-cloud**: AWS (primary), Azure, GCP support
+- **Asset catalog**: List all assets for audit (CSV/JSON), diff between snapshots
+- **Change detection**: Compare with previous run; new/removed/modified assets and findings
+- **Security scanning**: 20+ AWS resource types – EC2, S3, RDS, Lambda, IAM, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS (Clusters + Task Defs), KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch CIS alarms, ECR
+- **Compliance**: CIS and SOC2 mapping with pass/fail report
+- **Governance**: Required tags, resource policy (forbidden instance types, regions)
+- **Pen testing**: Exposed services (0.0.0.0/0 on sensitive ports), secrets scan, exploit scenario mapping
+- **Vulnerability**: ECR image scan, AMI check (extensible)
+
+## Install
+
+```bash
+pip install -r requirements.txt
+# or
+pip install -e .
+```
+
+**Note:** Run from the project root so `cspm` is importable. If you see `ModuleNotFoundError: No module named 'cspm'`, run `pip install -e .` from the repo root.
+
+## Web UI (Vue 3 + FastAPI)
+
+The UI is a **Vue 3** single-page app with a **FastAPI** backend. It shows **step-by-step execution progress** (e.g. “Discovering EC2”, “Scanning S3”, “Running rule engine”) similar to Harness, then the result and download links.
+
+### Build and run
+
+1. **Backend** (serves API and the built frontend):
+
+```bash
+python -m cspm.cli ui --host 127.0.0.1 --port 8000
+```
+
+2. **Build the frontend** (once, or after changes):
+
+```bash
+cd frontend && npm install && npm run build
+```
+
+Then open `http://127.0.0.1:8000`. The server serves the Vue app from `frontend/dist` and the API under `/api`.
+
+### Development (frontend hot-reload)
+
+Run backend and frontend separately so the Vue app hot-reloads:
+
+- Terminal 1: `python -m cspm.cli ui --host 127.0.0.1 --port 8000`
+- Terminal 2: `cd frontend && npm run dev`
+
+Open `http://127.0.0.1:5173`; Vite proxies `/api` to the backend.
+
+### Setup
+
+In the UI go to **Setup** (or complete it right after choosing a cloud):
+
+- **AWS:** Region, Access Key ID, Secret Access Key (optional session token). Optionally save to `config.yaml`.
+- **GCP:** Project ID, optional path to service account JSON. Optionally save to config.
+- **Azure:** Subscription ID, Tenant ID, Client ID, Client secret. Optionally save to config.
+
+You can skip with **Setup later** and configure from the Dashboard later. Credentials are stored in **plain text** in `config.yaml` if you enable “Save to config”—restrict file permissions and do not commit this file.
+
+On Windows you can also run:
+
+```powershell
+.\scripts\run_ui.ps1
+```
+
+## CLI
+
+| Command | Description |
+|--------|-------------|
+| `cspm scan aws [--save-snapshot] [--only ec2,s3,waf]` | Run scan; optional snapshot |
+| `cspm assets list [--cloud aws] [--type ec2] [--output csv\|json] [--snapshot ID]` | Audit-ready asset list |
+| `cspm assets diff <snapshot_before> <snapshot_after>` | Diff two snapshots |
+| `cspm changes [--cloud aws] [--output json\|html]` | Changes since last run |
+| `cspm compliance [--framework cis\|soc2] [--output json\|html]` | Compliance report |
+| `cspm governance [--output json\|html]` | Tag and policy governance |
+| `cspm pentest [--exposed] [--secrets] [--exploit-map] [--repo-path PATH]` | Basic pen test |
+| `cspm report [--format json\|html] [--snapshot ID]` | Risk and findings report |
+| `cspm ui [--host 127.0.0.1] [--port 8000]` | Run the Web UI |
+
+## Config
+
+- **config.yaml** (optional) – See [Configuration](docs/CONFIGURATION.md) for full structure (AWS, GCP, Azure).
+- **Env** – `AWS_DEFAULT_REGION`, `CSPM_SNAPSHOTS_DIR`, `CSPM_RULES_DIR`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, `AZURE_*`, etc.
+
+### AWS authentication options
+
+- **Recommended (server)**: Use an IAM Role / Instance Profile (no keys stored).
+- **Local dev**: Use an AWS profile (`AWS_PROFILE`) or keys via UI Setup.
+
+If you enable “persist credentials” in the UI, it writes to `config.yaml` in **plain text**. Lock down that file and avoid committing it.
+
+## AWS IAM Permissions (least privilege for scanning)
+
+The current AWS discovery/scanners use read-only APIs for:
+
+- EC2 instances, regions, security groups
+- S3 buckets + public access block + encryption status
+- RDS instances
+- Lambda functions
+- IAM users/roles + attached policies (for wildcard/admin checks)
+- ALBs (ELBv2)
+- WAFv2 WebACLs + associations
+- ECR repositories + image scan findings
+
+Create an IAM policy like below and attach it to the scanning user/role:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "STSIdentity",
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2Read",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions",
+        "ec2:DescribeSecurityGroups"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ELBv2Read",
+      "Effect": "Allow",
+      "Action": ["elasticloadbalancing:DescribeLoadBalancers"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3Read",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:GetBucketEncryption",
+        "s3:GetPublicAccessBlock"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RDSRead",
+      "Effect": "Allow",
+      "Action": ["rds:DescribeDBInstances"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaRead",
+      "Effect": "Allow",
+      "Action": ["lambda:ListFunctions"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMReadForPolicyChecks",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListUsers",
+        "iam:ListRoles",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListPolicies",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "WAFv2Read",
+      "Effect": "Allow",
+      "Action": [
+        "wafv2:ListWebACLs",
+        "wafv2:ListResourcesForWebACL"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRRead",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:DescribeImageScanFindings"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | Data flow, components, and extensibility |
+| [Configuration](docs/CONFIGURATION.md) | config.yaml, environment variables, cloud credentials |
+| [Web API](docs/API.md) | REST and SSE endpoints for the UI backend |
+| [Deployment](docs/DEPLOYMENT.md) | Production run, Docker, reverse proxy, security |
+| [Improvements](docs/IMPROVEMENTS.md) | Suggested enhancements and roadmap |
+
+## What else can be updated
+
+See **[docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** for a full list of suggested improvements, including:
+
+- Scheduled scans and dashboard metrics
+- Encrypting credentials and role-based access
+- Full GCP and Azure discovery (beyond stubs)
+- Custom rules from the UI, more compliance frameworks
+- Remediation actions, alerting, and runbooks
+- Health endpoint, metrics, and CI/CD
+
+## Project layout
+
+- `cspm/` – core package
+  - `core/` – scan controller, asset collector, asset catalog
+  - `providers/` – AWS, Azure, GCP
+  - `discovery/` – EC2, S3, RDS, Lambda, IAM, network, WAF
+  - `scanners/` – per-resource scanners + WAF
+  - `rule_engine/` – load and evaluate YAML rules
+  - `rules/` – YAML rules (s3, iam, waf, security_controls, governance)
+  - `change_detection/` – snapshots, change detector, timeline
+  - `reporting/` – JSON/HTML report, audit export, change report
+  - `compliance/` – CIS, SOC2, compliance report
+  - `governance/` – tag policy, resource policy, governance report
+  - `pentest/` – exposed services, secrets, exploit map
+  - `vulnerability/` – ECR, AMI
+  - `ui/` – FastAPI app (JSON API + job progress), serves Vue build
+- `frontend/` – Vue 3 + Vite SPA (sidebar, Security Scan with step-by-step progress)
+- `snapshots/` – stored scan snapshots
+- `scripts/` – run_audit.sh, run_pentest.sh, run_ui.ps1, run_ui.sh
+
+## Troubleshooting
+
+- **`ModuleNotFoundError: No module named 'cspm'`** – Run `pip install -e .` from the project root.
+- **Logs / step progress not showing** – The UI uses SSE and a polling fallback; ensure you are not blocking EventSource or the `/api/jobs/{id}` endpoint (e.g. proxy buffering). See [Deployment](docs/DEPLOYMENT.md) for Nginx SSE config.
+- **Frontend not built** – Run `cd frontend && npm run build`. The backend serves the app from `frontend/dist`.
+- **AWS auth failed** – Check credentials and IAM permissions; see [AWS IAM Permissions](#aws-iam-permissions-least-privilege-for-scanning) above.

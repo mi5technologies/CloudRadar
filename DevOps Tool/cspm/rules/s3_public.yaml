@@ -1,0 +1,12 @@
+# S3 public access
+id: s3_public_block
+resource_type: s3
+category: STORAGE
+severity: high
+title: S3 bucket should block public access
+description: S3 bucket has public access not fully blocked
+condition:
+  op: false
+  key: block_public_acls
+# Discovery does not fetch block_public_acls; scanner sets it
+required: false
