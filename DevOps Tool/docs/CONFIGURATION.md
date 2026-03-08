@@ -15,23 +15,34 @@ aws:
   session_token: null
   profile_name: null
   region: "us-east-1"
+  # Multi-account: scan all org accounts via assume-role
+  role_assumption_template: "arn:aws:iam::{account_id}:role/CloudRadarScanner"
+  organization_role_arn: null  # alternative: fixed ARN
 
 gcp:
   project_id: "my-gcp-project"
   credentials_path: "/path/to/service-account.json"
+  # Multi-project: list projects under org or folder
+  organization_id: null
+  folder_id: null
 
 azure:
   subscription_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
   tenant_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
   client_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
   client_secret: "..."
+  # Multi-subscription: list subscriptions under management group or explicit list
+  management_group_id: null
+  subscription_ids: []
 ```
 
-- **AWS** – Either `access_key_id` + `secret_access_key` (and optional `session_token`) or `profile_name`. `region` is used when not overridden by CLI/UI.
-- **GCP** – `project_id` is required. `credentials_path` is optional (path to service account JSON); if omitted, default credentials are used (e.g. `gcloud auth application-default login`).
-- **Azure** – Service principal: `subscription_id`, `tenant_id`, `client_id`, `client_secret`. Used to set `AZURE_*` env vars for the SDK.
+- **AWS** – Either `access_key_id` + `secret_access_key` (and optional `session_token`) or `profile_name`. `region` is used when not overridden by CLI/UI. For **multi-account**: set `role_assumption_template` (e.g. `arn:aws:iam::{account_id}:role/CloudRadarScanner`) to scan all organization accounts via `organizations:ListAccounts` and `sts:AssumeRole`. See [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md) and [iam-policies/](iam-policies/) for IAM roles and JSON policies.
+- **GCP** – `project_id` is required for single project. `credentials_path` is optional. For **multi-project**: set `organization_id` or `folder_id` to list projects via Resource Manager API. See [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md).
+- **Azure** – Service principal: `subscription_id`, `tenant_id`, `client_id`, `client_secret`. For **multi-subscription**: set `management_group_id` or `subscription_ids` to scan multiple subscriptions. See [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md) and [iam-policies/](iam-policies/) for RBAC role JSON.
 
 **Security:** Storing credentials in `config.yaml` is plain text. Restrict file permissions and never commit this file.
+
+For **multi-cloud** (AWS + GCP + Azure in one deployment) and **multi-account** (org/folder/subscriptions per cloud), see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md). The **AI Usage Security** scan uses the same cloud credentials; see [AI Scans](AI_SCANS.md) for rule IDs and permissions.
 
 ## Environment variables
 

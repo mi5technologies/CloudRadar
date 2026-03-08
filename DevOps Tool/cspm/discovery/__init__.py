@@ -19,6 +19,9 @@ from cspm.discovery import cloudwatch_discovery
 from cspm.discovery import secretsmanager_discovery
 from cspm.discovery import sns_discovery
 from cspm.discovery import cloudfront_discovery
+from cspm.discovery import stepfunctions_discovery
+from cspm.discovery import bedrock_discovery
+from cspm.discovery import sagemaker_discovery
 
 __all__ = [
     "ec2_discovery", "s3_discovery", "rds_discovery", "lambda_discovery",
@@ -27,4 +30,7 @@ __all__ = [
     "kms_discovery", "apigateway_discovery", "sqs_discovery", "dynamodb_discovery",
     "guardduty_discovery", "cloudwatch_discovery",
     "secretsmanager_discovery", "sns_discovery", "cloudfront_discovery",
+    "stepfunctions_discovery",
+    "bedrock_discovery",
+    "sagemaker_discovery",
 ]

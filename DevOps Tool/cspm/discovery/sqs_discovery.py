@@ -17,12 +17,18 @@ def discover(region: str) -> list[dict[str, Any]]:
                         QueueUrl=url,
                         AttributeNames=[
                             "QueueArn", "SqsManagedSseEnabled", "KmsMasterKeyId", "Policy",
+                            "RedrivePolicy", "VisibilityTimeout",
                         ],
                     )
                     attrs = attrs_resp.get("Attributes", {})
                     encrypted = bool(attrs.get("KmsMasterKeyId")) or attrs.get("SqsManagedSseEnabled") == "true"
                     public_policy = _is_public_policy(attrs.get("Policy"))
                     name = url.split("/")[-1]
+                    redrive = attrs.get("RedrivePolicy")
+                    try:
+                        redrive_parsed = json.loads(redrive) if isinstance(redrive, str) and redrive else {}
+                    except Exception:
+                        redrive_parsed = {}
                     assets.append({
                         "id": attrs.get("QueueArn") or url,
                         "name": name,
@@ -33,6 +39,8 @@ def discover(region: str) -> list[dict[str, Any]]:
                         "kms_key_id": attrs.get("KmsMasterKeyId"),
                         "public_policy": public_policy,
                         "is_fifo": name.endswith(".fifo"),
+                        "redrive_policy": redrive_parsed,
+                        "visibility_timeout_sec": int(attrs.get("VisibilityTimeout", 0) or 0),
                     })
                 except Exception:
                     pass

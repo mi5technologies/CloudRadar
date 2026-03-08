@@ -23,7 +23,7 @@ from cspm.governance.governance_report import generate_governance_report
 from cspm.pentest import find_exposed_services, scan_secrets, map_findings_to_exploits
 from cspm.vulnerability import run_vulnerability_scan
 
-from cspm.ui.state import app_state
+from cspm.ui.state import app_state, CONFIG_PATH_DEFAULT
 
 
 # In-memory job store: job_id -> { "status", "steps", "result", "error", "downloads" }
@@ -66,7 +66,7 @@ def _run_scan_job(job_id: str, params: dict[str, Any]) -> None:
         if cloud not in ("aws", "gcp", "azure"):
             cloud = "aws"
         _emit(job_id, {"type": "step", "step": f"Starting {cloud.upper()} security scan", "status": "running", "detail": None})
-        cfg = Config()
+        cfg = Config(config_path=CONFIG_PATH_DEFAULT)
         ctrl = ScanController(cfg)
         only_list = params.get("only")
         if only_list:

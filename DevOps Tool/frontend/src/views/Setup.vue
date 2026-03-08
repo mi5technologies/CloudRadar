@@ -46,6 +46,11 @@
                 <label>Secret Access Key</label>
                 <input v-model="awsForm.secret_access_key" type="password" placeholder="••••••••" autocomplete="new-password" />
               </div>
+              <div class="input-group multi-account-section">
+                <label>Role assumption template <span class="opt-label">(multi-account)</span></label>
+                <input v-model="awsForm.role_assumption_template" type="text" placeholder="arn:aws:iam::{account_id}:role/CloudRadarScanner" />
+                <p class="field-hint">Use <code>{account_id}</code> placeholder. Scans all org accounts via assume-role.</p>
+              </div>
               <div class="input-group">
                 <label class="checkbox-label">
                   <input type="checkbox" v-model="awsForm.persist" /> Save to server config
@@ -88,6 +93,14 @@
                 <label>Service account JSON path <span class="opt-label">(optional)</span></label>
                 <input v-model="gcpForm.credentials_path" type="text" placeholder="/path/to/service-account.json" />
                 <p class="field-hint">Leave blank to use Application Default Credentials (<code>gcloud auth application-default login</code>).</p>
+              </div>
+              <div class="input-group">
+                <label>Organization ID <span class="opt-label">(multi-project)</span></label>
+                <input v-model="gcpForm.organization_id" type="text" placeholder="123456789012" />
+              </div>
+              <div class="input-group">
+                <label>Folder ID <span class="opt-label">(multi-project, alt to org)</span></label>
+                <input v-model="gcpForm.folder_id" type="text" placeholder="123456789012" />
               </div>
               <div class="input-group">
                 <label class="checkbox-label">
@@ -139,6 +152,14 @@
                 <input v-model="azureForm.client_secret" type="password" placeholder="••••••••" autocomplete="new-password" />
               </div>
               <div class="input-group">
+                <label>Management group ID <span class="opt-label">(multi-subscription)</span></label>
+                <input v-model="azureForm.management_group_id" type="text" placeholder="e.g. myMgmtGroup" />
+              </div>
+              <div class="input-group">
+                <label>Subscription IDs <span class="opt-label">(multi, comma-separated)</span></label>
+                <input v-model="azureForm.subscription_ids_str" type="text" placeholder="id1, id2, id3" />
+              </div>
+              <div class="input-group">
                 <label class="checkbox-label">
                   <input type="checkbox" v-model="azureForm.persist" /> Save to server config
                 </label>
@@ -179,9 +200,9 @@ const CLOUDS = [
   { id: 'azure', label: 'Azure',        icon: `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#0078D4" d="M27 4L13 28l9 5-7 7h16l7-36z"/><path fill="#50E6FF" d="M27 4L4 34l9-1 7-7-3-5z"/></svg>` },
 ]
 
-const awsForm = reactive({ region: 'us-east-1', access_key_id: '', secret_access_key: '', persist: true })
-const gcpForm = reactive({ project_id: '', credentials_path: '', persist: true })
-const azureForm = reactive({ subscription_id: '', tenant_id: '', client_id: '', client_secret: '', persist: true })
+const awsForm = reactive({ region: 'us-east-1', access_key_id: '', secret_access_key: '', role_assumption_template: '', persist: true })
+const gcpForm = reactive({ project_id: '', credentials_path: '', organization_id: '', folder_id: '', persist: true })
+const azureForm = reactive({ subscription_id: '', tenant_id: '', client_id: '', client_secret: '', management_group_id: '', subscription_ids_str: '', persist: true })
 
 const connectionStatus = reactive({ aws: 'none', gcp: 'none', azure: 'none' })
 const messages = reactive({ aws: '', gcp: '', azure: '' })
@@ -194,7 +215,7 @@ function togglePanel(id) {
   openPanels.value = s
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Auto-open the panel corresponding to query param
   const q = (route.query.cloud || '').toLowerCase()
   if (q && ['aws', 'gcp', 'azure'].includes(q)) {
@@ -202,13 +223,36 @@ onMounted(() => {
   } else {
     openPanels.value = new Set(['aws'])
   }
-  // Load saved connection states
+  // Load saved connection states and multi-account config from API
   try {
-    const saved = JSON.parse(localStorage.getItem('cspm_cloud_connections') || '{}')
-    if (saved.aws)   connectionStatus.aws   = 'connected'
-    if (saved.gcp)   connectionStatus.gcp   = 'connected'
-    if (saved.azure) connectionStatus.azure = 'connected'
-  } catch (_) {}
+    const status = await api.getStatus()
+    if (status.aws?.mode !== 'none') {
+      connectionStatus.aws = 'connected'
+      awsForm.region = status.aws.region || 'us-east-1'
+      awsForm.role_assumption_template = status.aws.role_assumption_template || status.aws.organization_role_arn || ''
+    }
+    if (status.gcp?.mode !== 'none') {
+      connectionStatus.gcp = 'connected'
+      gcpForm.project_id = status.gcp.project_id || ''
+      gcpForm.organization_id = status.gcp.organization_id || ''
+      gcpForm.folder_id = status.gcp.folder_id || ''
+    }
+    if (status.azure?.mode !== 'none') {
+      connectionStatus.azure = 'connected'
+      azureForm.subscription_id = status.azure.subscription_id || ''
+      azureForm.tenant_id = status.azure.tenant_id || ''
+      azureForm.management_group_id = status.azure.management_group_id || ''
+      const subIds = status.azure.subscription_ids
+      azureForm.subscription_ids_str = Array.isArray(subIds) ? subIds.join(', ') : ''
+    }
+  } catch (_) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('cspm_cloud_connections') || '{}')
+      if (saved.aws)   connectionStatus.aws   = 'connected'
+      if (saved.gcp)   connectionStatus.gcp   = 'connected'
+      if (saved.azure) connectionStatus.azure = 'connected'
+    } catch (__) {}
+  }
 })
 
 function markConnected(cloud) {
@@ -231,7 +275,10 @@ async function submitAws() {
   }
   connectionStatus.aws = 'saving'
   try {
-    await api.setupAws(awsForm)
+    await api.setupAws({
+      ...awsForm,
+      role_assumption_template: awsForm.role_assumption_template?.trim() || null,
+    })
     messages.aws = '✓ AWS credentials saved successfully.'
     markConnected('aws')
   } catch (e) {
@@ -244,14 +291,20 @@ async function submitAws() {
 async function submitGcp() {
   messages.gcp = ''
   errors.gcp = false
-  if (!gcpForm.project_id?.trim()) {
-    messages.gcp = 'Project ID is required.'
+  if (!gcpForm.project_id?.trim() && !gcpForm.organization_id?.trim() && !gcpForm.folder_id?.trim()) {
+    messages.gcp = 'Project ID (single) or Organization ID / Folder ID (multi-project) is required.'
     errors.gcp = true
     return
   }
   connectionStatus.gcp = 'saving'
   try {
-    await api.setupGcp({ project_id: gcpForm.project_id, credentials_path: gcpForm.credentials_path?.trim() || null, persist: gcpForm.persist })
+    await api.setupGcp({
+      project_id: gcpForm.project_id,
+      credentials_path: gcpForm.credentials_path?.trim() || null,
+      organization_id: gcpForm.organization_id?.trim() || null,
+      folder_id: gcpForm.folder_id?.trim() || null,
+      persist: gcpForm.persist,
+    })
     messages.gcp = '✓ Google Cloud credentials saved successfully.'
     markConnected('gcp')
   } catch (e) {
@@ -264,14 +317,30 @@ async function submitGcp() {
 async function submitAzure() {
   messages.azure = ''
   errors.azure = false
-  if (!azureForm.subscription_id?.trim() || !azureForm.client_id?.trim() || !azureForm.client_secret?.trim()) {
-    messages.azure = 'Subscription ID, Client ID, and Client secret are required.'
+  if (!azureForm.subscription_id?.trim() && !azureForm.management_group_id?.trim() && !azureForm.subscription_ids_str?.trim()) {
+    messages.azure = 'Subscription ID (single) or Management group ID / Subscription IDs (multi) required.'
+    errors.azure = true
+    return
+  }
+  if (!azureForm.client_id?.trim() || !azureForm.client_secret?.trim()) {
+    messages.azure = 'Client ID and Client secret are required.'
     errors.azure = true
     return
   }
   connectionStatus.azure = 'saving'
   try {
-    await api.setupAzure({ subscription_id: azureForm.subscription_id, tenant_id: azureForm.tenant_id, client_id: azureForm.client_id, client_secret: azureForm.client_secret, persist: azureForm.persist })
+    const subIds = azureForm.subscription_ids_str
+      ? azureForm.subscription_ids_str.split(',').map(s => s.trim()).filter(Boolean)
+      : null
+    await api.setupAzure({
+      subscription_id: azureForm.subscription_id,
+      tenant_id: azureForm.tenant_id,
+      client_id: azureForm.client_id,
+      client_secret: azureForm.client_secret,
+      management_group_id: azureForm.management_group_id?.trim() || null,
+      subscription_ids: subIds,
+      persist: azureForm.persist,
+    })
     messages.azure = '✓ Azure credentials saved successfully.'
     markConnected('azure')
   } catch (e) {

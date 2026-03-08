@@ -4,9 +4,33 @@ from typing import Any, Callable, Optional
 from cspm.providers.base_provider import BaseProvider
 
 
+def _list_projects_under_parent(parent: str) -> list[dict]:
+    """List projects under organization or folder. parent = organizations/123 or folders/456."""
+    try:
+        from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
+        client = ProjectsClient()
+        projects = []
+        for p in client.list_projects(parent=parent):
+            if p.state == "ACTIVE":
+                projects.append({"id": p.project_id, "name": p.display_name or p.project_id})
+        return projects
+    except Exception:
+        return []
+
+
 class GCPProvider(BaseProvider):
-    def __init__(self, project_id: str | None = None):
-        self.project_id = project_id
+    def __init__(
+        self,
+        project_id: str | None = None,
+        organization_id: str | None = None,
+        folder_id: str | None = None,
+    ):
+        self.project_id = (project_id or "").strip() or None
+        self.organization_id = (organization_id or "").strip() or None
+        self.folder_id = (folder_id or "").strip() or None
+
+    def _is_multi_project(self) -> bool:
+        return bool(self.organization_id or self.folder_id)
 
     def authenticate(self) -> bool:
         try:
@@ -20,6 +44,14 @@ class GCPProvider(BaseProvider):
     def get_account_id(self) -> str:
         return self.project_id or "unknown"
 
+    def get_project_ids(self) -> list[str]:
+        """Return list of project IDs to scan (multi-project or single)."""
+        if self._is_multi_project():
+            parent = f"organizations/{self.organization_id}" if self.organization_id else f"folders/{self.folder_id}"
+            projects = _list_projects_under_parent(parent)
+            return [p["id"] for p in projects]
+        return [self.project_id] if self.project_id else []
+
     def get_regions(self) -> list[str]:
         return ["us-central1", "us-east1"]
 
@@ -32,9 +64,49 @@ class GCPProvider(BaseProvider):
             if on_progress:
                 on_progress(step, status, detail)
 
+        if self._is_multi_project():
+            return self._discover_multi_project(asset_types, on_progress)
+
+        return self._discover_single_project(asset_types, on_progress)
+
+    def _discover_multi_project(
+        self, asset_types: list[str] | None, on_progress: Optional[Callable[[str, str, Optional[str]], None]]
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Discover assets across all projects under org or folder."""
+        parent = f"organizations/{self.organization_id}" if self.organization_id else f"folders/{self.folder_id}"
+        projects = _list_projects_under_parent(parent)
+        if not projects:
+            if on_progress:
+                on_progress("No projects found under org/folder", "error", parent)
+            return {}
+
+        merged: dict[str, list[dict[str, Any]]] = {}
+        orig_project = self.project_id
+        try:
+            for proj in projects:
+                proj_id = proj["id"]
+                self.project_id = proj_id
+                raw = self._discover_single_project(asset_types, on_progress)
+                for rtype, items in raw.items():
+                    for item in items:
+                        item["account_id"] = proj_id
+                        item["project_id"] = proj_id
+                    merged.setdefault(rtype, []).extend(items)
+        finally:
+            self.project_id = orig_project
+        return merged
+
+    def _discover_single_project(
+        self, asset_types: list[str] | None, on_progress: Optional[Callable[[str, str, Optional[str]], None]]
+    ) -> dict[str, list[dict[str, Any]]]:
+        def report(step: str, status: str = "running", detail: str | None = None):
+            if on_progress:
+                on_progress(step, status, detail)
+
         all_types = {"gcs_bucket", "gce_instance", "gcp_firewall", "gcp_iam_binding"}
         types = set(asset_types) if asset_types else all_types
         result: dict[str, list[dict[str, Any]]] = {}
+        project = self.project_id or ""
 
         if "gcs_bucket" in types:
             report("Discovering GCS buckets", "running")

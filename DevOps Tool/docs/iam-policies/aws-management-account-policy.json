@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListOrgAccounts",
+      "Effect": "Allow",
+      "Action": [
+        "organizations:ListAccounts"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AssumeRoleInMemberAccounts",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::*:role/CloudRadarScanner"
+    }
+  ]
+}

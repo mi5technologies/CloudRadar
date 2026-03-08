@@ -1,0 +1,10 @@
+id: lambda_no_dlq
+resource_type: lambda
+category: SERVERLESS
+severity: low
+title: Lambda should have failure destination (DLQ or OnFailure)
+description: Lambda has no DeadLetterConfig or async OnFailure destination; failed invocations may be lost
+condition:
+  op: true
+  key: no_failure_destination
+required: false

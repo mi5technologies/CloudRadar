@@ -22,6 +22,7 @@ def discover(region: str) -> list[dict[str, Any]]:
                         pitr = pitr_spec.get("PointInTimeRecoveryDescription", {}).get("PointInTimeRecoveryStatus") == "ENABLED"
                     except Exception:
                         pass
+                    stream_spec = table.get("StreamSpecification") or {}
                     assets.append({
                         "id": table.get("TableArn") or table_name,
                         "name": table_name,
@@ -30,6 +31,7 @@ def discover(region: str) -> list[dict[str, Any]]:
                         "status": table.get("TableStatus"),
                         "encryption_enabled": sse.get("Status") in ("ENABLED", "UPDATING"),
                         "pitr_enabled": pitr,
+                        "stream_enabled": stream_spec.get("StreamEnabled") is True,
                         "billing_mode": table.get("BillingModeSummary", {}).get("BillingMode", "PROVISIONED"),
                         "item_count": table.get("ItemCount", 0),
                     })

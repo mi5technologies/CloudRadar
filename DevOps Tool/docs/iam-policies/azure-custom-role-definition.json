@@ -1,0 +1,23 @@
+{
+  "Name": "CloudRadar Scanner",
+  "Id": null,
+  "IsCustom": true,
+  "Description": "Read-only role for CloudRadar security scanning: list subscriptions, read compute, storage, network, and security resources.",
+  "Actions": [
+    "Microsoft.Management/managementGroups/read",
+    "Microsoft.Management/managementGroups/subscriptions/read",
+    "Microsoft.Resources/subscriptions/read",
+    "Microsoft.Compute/*/read",
+    "Microsoft.Storage/storageAccounts/read",
+    "Microsoft.Network/networkSecurityGroups/read",
+    "Microsoft.Network/virtualNetworks/read",
+    "Microsoft.Authorization/*/read"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/providers/Microsoft.Management/managementGroups/YOUR_MANAGEMENT_GROUP_ID",
+    "/subscriptions/YOUR_SUBSCRIPTION_ID"
+  ]
+}

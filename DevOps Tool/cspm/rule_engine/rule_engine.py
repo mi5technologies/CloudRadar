@@ -22,6 +22,7 @@ class RuleEngine:
                         "description": rule.get("description", ""),
                         "resource_type": resource_type,
                         "resource_id": asset.get("id") or asset.get("name") or str(asset.get("arn", "")),
+                        "account_id": asset.get("account_id"),
                         "asset": asset,
                         "required": rule.get("required", False),
                     })

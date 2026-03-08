@@ -30,5 +30,9 @@ def scan_lambda(assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         a["timeout_high"] = timeout > 300
         env = a.get("env_vars") or a.get("environment") or {}
         a["env_secrets_detected"] = _has_secrets_in_env(env)
+        # No DLQ or async OnFailure destination — recommend adding for resilience
+        has_dlq = bool(a.get("dead_letter_config"))
+        has_on_failure = bool(a.get("destination_on_failure"))
+        a["no_failure_destination"] = not (has_dlq or has_on_failure)
         enriched.append(a)
     return enriched

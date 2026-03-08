@@ -36,6 +36,8 @@ from cspm.ui import jobs as jobs_module
 from cspm.ui import test_runner
 from cspm.scanners.cost_scanner import scan_cost
 from cspm.scanners.ai_scanner import scan_ai
+from cspm.scanners.serverless_scanner import scan_serverless
+from cspm.scanners.usage_scanner import scan_usage
 
 
 UI_DIR = Path(__file__).resolve().parent
@@ -61,7 +63,8 @@ def _shutdown() -> None:
 
 @app.get("/api/health")
 def api_health() -> dict[str, Any]:
-    return {"status": "ok"}
+    """Health check for load balancers and monitoring. Returns 200 when the app is ready to serve."""
+    return {"status": "ok", "timestamp": time.time()}
 
 
 @app.get("/api/status")
@@ -81,12 +84,18 @@ async def api_setup_aws(request: Request) -> dict[str, Any]:
     access_key_id = (body.get("access_key_id") or "").strip()
     secret_access_key = (body.get("secret_access_key") or "").strip()
     persist = body.get("persist", True)
+    org_role_arn = (body.get("organization_role_arn") or "").strip() or None
+    role_template = (body.get("role_assumption_template") or "").strip() or None
     if not access_key_id or not secret_access_key:
         return JSONResponse(
             status_code=400,
             content={"error": "access_key_id and secret_access_key required"},
         )
-    app_state.set_aws_keys(access_key_id, secret_access_key, None, region)
+    app_state.set_aws_keys(
+        access_key_id, secret_access_key, None, region,
+        organization_role_arn=org_role_arn,
+        role_assumption_template=role_template,
+    )
     if persist:
         app_state.persist_to_config(CONFIG_PATH_DEFAULT)
     return {"ok": True}
@@ -97,10 +106,20 @@ async def api_setup_gcp(request: Request) -> dict[str, Any]:
     body = await request.json() or {}
     project_id = (body.get("project_id") or "").strip()
     credentials_path = (body.get("credentials_path") or "").strip() or None
+    organization_id = (body.get("organization_id") or "").strip() or None
+    folder_id = (body.get("folder_id") or "").strip() or None
     persist = body.get("persist", True)
-    if not project_id:
-        return JSONResponse(status_code=400, content={"error": "project_id required"})
-    app_state.set_gcp(project_id, credentials_path=credentials_path, persist=persist)
+    if not project_id and not organization_id and not folder_id:
+        return JSONResponse(status_code=400, content={"error": "project_id (single) or organization_id/folder_id (multi-project) required"})
+    app_state.set_gcp(
+        project_id or "",
+        credentials_path=credentials_path,
+        organization_id=organization_id,
+        folder_id=folder_id,
+        persist=persist,
+    )
+    if persist:
+        app_state.persist_to_config(CONFIG_PATH_DEFAULT)
     return {"ok": True}
 
 
@@ -111,13 +130,31 @@ async def api_setup_azure(request: Request) -> dict[str, Any]:
     tenant_id = (body.get("tenant_id") or "").strip()
     client_id = (body.get("client_id") or "").strip()
     client_secret = (body.get("client_secret") or "").strip()
+    management_group_id = (body.get("management_group_id") or "").strip() or None
+    subscription_ids = body.get("subscription_ids")
+    if isinstance(subscription_ids, list):
+        subscription_ids = [str(x).strip() for x in subscription_ids if str(x).strip()]
+    else:
+        subscription_ids = None
     persist = body.get("persist", True)
-    if not subscription_id or not client_id or not client_secret:
+    if not subscription_id and not management_group_id and not subscription_ids:
         return JSONResponse(
             status_code=400,
-            content={"error": "subscription_id, client_id, and client_secret required"},
+            content={"error": "subscription_id (single) or management_group_id/subscription_ids (multi) required"},
         )
-    app_state.set_azure(subscription_id, tenant_id, client_id, client_secret, persist=persist)
+    if not client_id or not client_secret:
+        return JSONResponse(status_code=400, content={"error": "client_id and client_secret required"})
+    app_state.set_azure(
+        subscription_id or "",
+        tenant_id,
+        client_id,
+        client_secret,
+        management_group_id=management_group_id,
+        subscription_ids=subscription_ids,
+        persist=persist,
+    )
+    if persist:
+        app_state.persist_to_config(CONFIG_PATH_DEFAULT)
     return {"ok": True}
 
 
@@ -452,6 +489,116 @@ async def api_cost(request: Request) -> dict[str, Any]:
         result["summary"]["skipped_rules"] = list(skip_set)
 
     return result
+
+
+# ---------- Serverless Security ----------
+
+_SERVERLESS_TYPES = ["lambda", "stepfunctions", "api_gateway", "sqs", "dynamodb"]
+
+
+@app.post("/api/serverless-scan")
+async def api_serverless_scan(request: Request) -> dict[str, Any]:
+    """Run serverless-focused security checks (Lambda, Step Functions, API Gateway, SQS, DynamoDB).
+
+    POST body (all optional):
+        cloud   "aws" | "gcp" | "azure"  (default: "aws")
+        region  AWS region               (default: us-east-1)
+        skip_rules  List of rule IDs to exclude
+    """
+    body = await request.json() or {}
+    cloud = (body.get("cloud") or "aws").strip().lower()
+    if cloud not in ("aws", "gcp", "azure"):
+        cloud = "aws"
+    region = (body.get("region") or "").strip() or (app_state.aws.region or "us-east-1")
+    skip_rules: list[str] = body.get("skip_rules") or []
+
+    last = jobs_module.get_last_scan_result()
+    assets: dict[str, Any] = {}
+    if last and last.get("cloud") == cloud:
+        assets = last.get("assets", {}) or {}
+        if last.get("region") and last.get("region") != region:
+            assets = {}
+    if not assets or not any(assets.get(t) for t in _SERVERLESS_TYPES):
+        cfg = Config()
+        ctrl = ScanController(cfg)
+        scan = ctrl.run_scan(cloud=cloud, region=region, only=_SERVERLESS_TYPES)
+        if scan.get("error"):
+            return JSONResponse(status_code=400, content={"error": scan.get("error")})
+        assets = scan.get("assets", {}) or {}
+
+    findings = scan_serverless(assets=assets, region=region, cloud=cloud)
+    skip_set = set(skip_rules)
+    findings = [f for f in findings if f.get("rule_id") not in skip_set]
+    by_sev: dict[str, int] = {}
+    for f in findings:
+        s = f.get("severity", "low")
+        by_sev[s] = by_sev.get(s, 0) + 1
+    return {
+        "findings": findings,
+        "summary": {
+            "total_findings": len(findings),
+            "high": by_sev.get("high", 0),
+            "medium": by_sev.get("medium", 0),
+            "low": by_sev.get("low", 0),
+            "cloud": cloud,
+            "region": region,
+            "skipped_rules": list(skip_set),
+        },
+    }
+
+
+# ---------- Usage Scan ----------
+
+@app.post("/api/usage-scan")
+async def api_usage_scan(request: Request) -> dict[str, Any]:
+    """Run usage-based checks (Lambda invocations, errors, throttles from CloudWatch).
+
+    POST body (all optional):
+        cloud   "aws" (only supported for now)
+        region  AWS region (default: us-east-1)
+        skip_rules  List of rule IDs to exclude
+        days_lookback  Days of metrics (default: 14)
+    """
+    body = await request.json() or {}
+    cloud = (body.get("cloud") or "aws").strip().lower()
+    region = (body.get("region") or "").strip() or (app_state.aws.region or "us-east-1")
+    skip_rules: list[str] = body.get("skip_rules") or []
+    days_lookback = int(body.get("days_lookback") or 14)
+
+    last = jobs_module.get_last_scan_result()
+    assets: dict[str, Any] = {}
+    if last and last.get("cloud") == cloud:
+        assets = last.get("assets", {}) or {}
+    if not assets.get("lambda"):
+        cfg = Config()
+        ctrl = ScanController(cfg)
+        scan = ctrl.run_scan(cloud=cloud, region=region, only=["lambda"])
+        if scan.get("error"):
+            return JSONResponse(status_code=400, content={"error": scan.get("error")})
+        assets = scan.get("assets", {}) or {}
+
+    findings = scan_usage(
+        assets=assets, region=region, cloud=cloud, days_lookback=max(1, min(90, days_lookback))
+    )
+    skip_set = set(skip_rules)
+    findings = [f for f in findings if f.get("rule_id") not in skip_set]
+    by_sev: dict[str, int] = {}
+    for f in findings:
+        s = f.get("severity", "low")
+        by_sev[s] = by_sev.get(s, 0) + 1
+    return {
+        "findings": findings,
+        "summary": {
+            "total_findings": len(findings),
+            "high": by_sev.get("high", 0),
+            "medium": by_sev.get("medium", 0),
+            "low": by_sev.get("low", 0),
+            "cloud": cloud,
+            "region": region,
+            "days_lookback": days_lookback,
+            "skipped_rules": list(skip_set),
+        },
+    }
 
 
 # ---------- AI Usage Security ----------

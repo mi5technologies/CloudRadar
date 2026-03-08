@@ -15,6 +15,7 @@ from cspm.scanners.guardduty_scanner import scan_guardduty
 from cspm.scanners.cloudwatch_scanner import scan_cloudwatch
 from cspm.scanners.secretsmanager_scanner import scan_secretsmanager
 from cspm.scanners.sns_scanner import scan_sns
+from cspm.scanners.stepfunctions_scanner import scan_stepfunctions
 
 __all__ = [
     "scan_s3", "scan_iam", "scan_network", "scan_waf",
@@ -22,5 +23,5 @@ __all__ = [
     "scan_ecs_clusters", "scan_ecs_task_defs", "scan_kms",
     "scan_apigateway", "scan_sqs", "scan_dynamodb",
     "scan_guardduty", "scan_cloudwatch",
-    "scan_secretsmanager", "scan_sns",
+    "scan_secretsmanager", "scan_sns", "scan_stepfunctions",
 ]

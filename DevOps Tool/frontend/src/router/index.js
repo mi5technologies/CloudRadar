@@ -22,6 +22,7 @@ const routes = [
   { path: '/scan-history', name: 'ScanHistory', component: () => import('../views/ScanHistory.vue'), meta: { title: 'Scan History' } },
   { path: '/cost', name: 'Cost', component: () => import('../views/Cost.vue'), meta: { title: 'Cost Optimisation' } },
   { path: '/security/ai-usage', name: 'AiUsage', component: () => import('../views/AiUsage.vue'), meta: { title: 'AI Usage Security' } },
+  { path: '/security/serverless-usage', name: 'ServerlessUsage', component: () => import('../views/ServerlessUsage.vue'), meta: { title: 'Serverless & Usage' } },
 ]
 
 const router = createRouter({

@@ -1,0 +1,28 @@
+{
+  "description": "Grant these roles to the CloudRadar service account. At org/folder: grant Resource Manager roles to list projects. At each project: grant the reader/security roles below.",
+  "organization_or_folder_roles": [
+    "roles/resourcemanager.projectViewer",
+    "roles/resourcemanager.folderViewer"
+  ],
+  "per_project_roles": [
+    "roles/viewer",
+    "roles/securityreviewer",
+    "roles/cloudasset.viewer",
+    "roles/storage.objectViewer",
+    "roles/compute.viewer",
+    "roles/iam.securityReviewer"
+  ],
+  "custom_role_actions_optional": [
+    "resourcemanager.projects.list",
+    "resourcemanager.projects.get",
+    "storage.buckets.list",
+    "storage.buckets.get",
+    "compute.instances.list",
+    "compute.instances.get",
+    "compute.firewalls.list",
+    "compute.networks.list",
+    "iam.roles.list",
+    "iam.serviceAccounts.list",
+    "cloudasset.assets.search"
+  ]
+}

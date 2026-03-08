@@ -1,6 +1,52 @@
 # Suggested Improvements
 
-This document lists concrete improvements that can be made to CloudRadar, grouped by area.
+This document lists concrete improvements that can be made to CloudRadar, grouped by area. Items marked with ✅ have been implemented.
+
+---
+
+## Multi-account and organization support
+
+- ✅ **AWS Organizations** – Support scanning all member accounts via `organizations:ListAccounts` and `sts:AssumeRole` into a delegated scanner role in each account. Config: `aws.organization_role_arn` or `aws.role_assumption_template`. Aggregate findings by `account_id`.
+- ✅ **Google Cloud organization / folders** – Use Resource Manager API (`resourcemanager.projects.list`) to list projects under an org or folder. Config: `gcp.organization_id` or `gcp.folder_id`. Scan each project and aggregate by `project_id`.
+- ✅ **Azure management groups / multiple subscriptions** – List subscriptions via `managementGroups.get_subscriptions_under_management_group()` or explicit `subscription_ids`. Config: `azure.management_group_id` or `azure.subscription_ids`. Scan each subscription and aggregate by `subscription_id`.
+- ✅ **Unified multi-account report** – Single report spanning all accounts/projects/subscriptions with filters by account, region, and severity. Findings and catalog entries include `account_id` / `project_id` / `subscription_id`.
+- ✅ **Credential model** – Extend `AWSAuth`, `GCPAuth`, `AzureAuth` to support multiple targets; add account/project/subscription selector in Setup and scan UI.
+
+---
+
+## AI-focused scans and tests
+
+- ✅ **Prompt injection / jailbreak prevention** – Bedrock: guardrail content policy checked for PROMPT_ATTACK filter; Vertex/Azure: safety and content filter review findings.
+- ✅ **Model access control** – Bedrock: Lambda–Bedrock IAM/logging review finding; SageMaker endpoint and notebook checks.
+- ✅ **Data residency** – Scans run per region; Bedrock models are regional.
+- ✅ **Usage and cost** – Bedrock: provisioned throughput discovered (list_provisioned_model_throughputs); advisory in scanner.
+- ✅ **Inference logging** – Bedrock: advisory finding to verify inference logging; Vertex/Azure: safety review includes logging.
+- ✅ **Fine-tuning security** – SageMaker training jobs discovered; endpoint/notebook IAM and encryption checks.
+- ✅ **SageMaker** – Discovery and scanner: notebooks (direct internet access, KMS), endpoints (encryption), training jobs.
+- ✅ **AI in Lambda / Functions** – Finding to review Lambda functions that invoke Bedrock (IAM, VPC, logging).
+- ✅ **AI Security compliance** – Findings mapped to OWASP LLM Top 10 and NIST AI RMF (owasp_llm, nist_ai_rmf on each finding).
+- ✅ **Bedrock Knowledge Base** – Discovery and checks for S3 data source access, role ARN, and data sources.
+
+---
+
+## Serverless and usage scans
+
+- ✅ **Serverless Security scan** – Dedicated scan (Security → Serverless & Usage → Serverless Security): Lambda (no DLQ/OnFailure, timeout >5min, env secrets, reserved concurrency 0, VPC review), Step Functions (logging, X-Ray), API Gateway (usage plan, access logging), SQS (no DLQ, visibility timeout), DynamoDB (streams). Uses last scan assets or discovers lambda, stepfunctions, api_gateway, sqs, dynamodb. API: `POST /api/serverless-scan`.
+- ✅ **Usage scan** – Dedicated scan (Security → Serverless & Usage → Usage Scan): CloudWatch metrics for Lambda (idle = 0 invocations, high error rate, throttles) over configurable days. API: `POST /api/usage-scan` with `days_lookback`.
+- **Lambda** – Cold-start tuning (high memory + short duration); reserved concurrency throttling risk; VPC config (Lambdas in VPC without NAT for outbound) — partially covered.
+- **Step Functions** – IAM PassRole (future); express vs standard cost/durability.
+- **EventBridge** – Rules: targets (Lambda, SQS) and IAM; schema registry validation.
+- **API Gateway** – Authorizers (Lambda/Cognito); request validation enabled.
+- **SQS** – Visibility timeout vs Lambda timeout (duplicate processing) — advisory in scanner; FIFO vs standard.
+- **DynamoDB** – On-demand vs provisioned cost analysis; GSI/LSI unused indexes; Streams encryption and consumer IAM — streams advisory done.
+- **Cloud Run** – Min instances (cost vs cold-start); concurrency limits; VPC egress private connectivity.
+- **Azure Functions** – Consumption vs Premium cost; Durable Functions storage; managed identity vs connection strings.
+- **GCP Cloud Functions** – Gen1 vs Gen2 migration; Eventarc event source IAM; Secret Manager usage.
+- **Usage-based cost** – Lambda GB-seconds and invocations (usage scan); DynamoDB read/write units; API Gateway requests; SQS message volume.
+- **Lambda layers** – Scan for outdated or vulnerable layers.
+- **Lambda extensions** – Security and observability extensions.
+
+---
 
 ## Product and UX
 
@@ -52,5 +98,16 @@ This document lists concrete improvements that can be made to CloudRadar, groupe
 - **Integration tests** – Tests that run a minimal scan (e.g. mock or test account) and assert on report shape.
 - **Frontend tests** – Unit or E2E tests for critical flows (setup, start scan, view progress).
 - **CI pipeline** – GitHub Actions / GitLab CI to run lint, tests, and build frontend on push.
+
+---
+
+## Implementation priority
+
+1. ✅ **Health endpoint** – Implemented. `GET /api/health` returns `{status, timestamp}` for load balancers.
+2. ✅ **Lambda DLQ** – Implemented. Discovery fetches DeadLetterConfig and OnFailure destination; rule `lambda_no_dlq` flags Lambdas without failure destination.
+3. ✅ **Step Functions discovery** – Implemented. New `stepfunctions_discovery` and `stepfunctions_scanner`; added to AWS provider and Security Scan UI.
+4. **SageMaker discovery** – New AWS AI resource type.
+5. ✅ **Multi-account config schema** – Implemented. AWS Organizations, GCP org/folder, Azure management groups; Setup UI and config support.
+6. ✅ **AI inference logging checks** – Extended ai_scanner with inference logging advisory, guardrail prompt attack/PII checks, SageMaker, Knowledge Base, and OWASP/NIST mapping.
 
 Prioritizing **scheduled scans**, **dashboard metrics**, **encrypt credentials**, and **GCP/Azure discovery** will have the highest impact for most users.

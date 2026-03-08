@@ -1,0 +1,208 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "STSIdentity",
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2Read",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVolumes",
+        "ec2:DescribeFlowLogs"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ELBv2Read",
+      "Effect": "Allow",
+      "Action": ["elasticloadbalancing:DescribeLoadBalancers", "elasticloadbalancing:DescribeTargetGroups", "elasticloadbalancing:DescribeListeners"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3Read",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:GetBucketEncryption",
+        "s3:GetPublicAccessBlock"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RDSRead",
+      "Effect": "Allow",
+      "Action": ["rds:DescribeDBInstances"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaRead",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:ListFunctions",
+        "lambda:GetFunction",
+        "lambda:GetFunctionEventInvokeConfig"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMReadForPolicyChecks",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListUsers",
+        "iam:ListRoles",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListPolicies",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "WAFv2Read",
+      "Effect": "Allow",
+      "Action": [
+        "wafv2:ListWebACLs",
+        "wafv2:ListResourcesForWebACL"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRRead",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:DescribeImageScanFindings"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrailRead",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetTrailStatus"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EKSRead",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:DescribeCluster"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECSRead",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:ListClusters",
+        "ecs:DescribeClusters",
+        "ecs:ListTaskDefinitionFamilies",
+        "ecs:DescribeTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "KMSRead",
+      "Effect": "Allow",
+      "Action": [
+        "kms:ListKeys",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "APIGatewayRead",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SQSRead",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ListQueues",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDBRead",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:ListTables",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "GuardDutyRead",
+      "Effect": "Allow",
+      "Action": [
+        "guardduty:ListDetectors",
+        "guardduty:GetDetector"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsRead",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeMetricFilters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:ListSecrets",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SNSRead",
+      "Effect": "Allow",
+      "Action": [
+        "sns:ListTopics",
+        "sns:GetTopicAttributes"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudFrontRead",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:ListDistributions",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:GetResponseHeadersPolicy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "StepFunctionsRead",
+      "Effect": "Allow",
+      "Action": [
+        "states:ListStateMachines",
+        "states:DescribeStateMachine"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

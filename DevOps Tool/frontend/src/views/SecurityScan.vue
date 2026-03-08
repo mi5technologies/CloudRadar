@@ -259,6 +259,7 @@ const AWS_SERVICES = [
   { id: 'secretsmanager', name: 'Secrets Manager',  description: 'Secrets: rotation disabled, not accessed in 180+ days, no resource policy.' },
   { id: 'codebuild',  name: 'CodeBuild',             description: 'Projects: logging to CloudWatch disabled, privileged mode containers enabled.' },
   { id: 'cloudformation', name: 'CloudFormation',   description: 'Stacks: termination protection disabled, admin IAM roles used, drift detected.' },
+  { id: 'stepfunctions',  name: 'Step Functions',   description: 'State machines: IAM PassRole, logging, X-Ray tracing for serverless workflows.' },
 ]
 
 const GCP_SERVICES = [

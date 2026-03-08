@@ -17,7 +17,9 @@ Open **http://127.0.0.1:8000** → choose **AWS**, **GCP**, or **Azure** → com
 
 ## Features
 
-- **Multi-cloud**: AWS (primary), Azure, GCP support
+- **Multi-cloud**: AWS (primary), Azure, GCP support. Run single-cloud scans or **scan all clouds in parallel** from the Security Scan page. See [Multi-Account Setup](docs/MULTI_ACCOUNT_SETUP.md) for multi-cloud and per-cloud multi-account (org/folder/subscriptions).
+- **AI Usage Security**: Dedicated scan for AWS Bedrock (guardrails, Knowledge Bases), SageMaker, Lambda–Bedrock review, plus Vertex AI and Azure OpenAI safety checks; findings mapped to OWASP LLM Top 10 and NIST AI RMF. See [AI Scans](docs/AI_SCANS.md).
+- **Serverless & Usage**: Serverless security scan (Lambda DLQ/timeout/secrets/VPC, Step Functions logging/X-Ray, API Gateway usage plans, SQS DLQ, DynamoDB streams) and usage scan (Lambda idle, errors, throttles from CloudWatch). See **Security → Serverless & Usage** in the UI.
 - **Asset catalog**: List all assets for audit (CSV/JSON), diff between snapshots
 - **Change detection**: Compare with previous run; new/removed/modified assets and findings
 - **Security scanning**: 20+ AWS resource types – EC2, S3, RDS, Lambda, IAM, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS (Clusters + Task Defs), KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch CIS alarms, ECR
@@ -213,6 +215,9 @@ Create an IAM policy like below and attach it to the scanning user/role:
 |----------|-------------|
 | [Architecture](docs/ARCHITECTURE.md) | Data flow, components, and extensibility |
 | [Configuration](docs/CONFIGURATION.md) | config.yaml, environment variables, cloud credentials |
+| [Multi-Account Setup](docs/MULTI_ACCOUNT_SETUP.md) | Multi-cloud and per-cloud multi-account (AWS, GCP, Azure), IAM/RBAC |
+| [AI Scans](docs/AI_SCANS.md) | AI Usage Security scan (Bedrock, SageMaker, Vertex, Azure OpenAI), rule IDs, OWASP/NIST mapping |
+| [IAM policy JSON files](docs/iam-policies/) | Ready-to-use AWS IAM, GCP roles, and Azure RBAC JSON for multi-account |
 | [Web API](docs/API.md) | REST and SSE endpoints for the UI backend |
 | [Deployment](docs/DEPLOYMENT.md) | Production run, Docker, reverse proxy, security |
 | [Improvements](docs/IMPROVEMENTS.md) | Suggested enhancements and roadmap |

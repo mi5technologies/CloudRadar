@@ -28,6 +28,8 @@ class AWSAuth:
     session_token: Optional[str] = None
     profile_name: Optional[str] = None
     region: str = "us-east-1"
+    organization_role_arn: Optional[str] = None  # arn:aws:iam::{account_id}:role/CloudRadarScanner
+    role_assumption_template: Optional[str] = None  # alternative to organization_role_arn
     updated_at: float = 0.0
 
     def masked(self) -> dict[str, Any]:
@@ -45,6 +47,8 @@ class AWSAuth:
             "session_token": "***" if self.session_token else None,
             "profile_name": self.profile_name,
             "region": self.region,
+            "organization_role_arn": self.organization_role_arn,
+            "role_assumption_template": self.role_assumption_template,
             "updated_at": self.updated_at,
         }
 
@@ -54,6 +58,8 @@ class GCPAuth:
     mode: str = "none"  # none | project | credentials
     project_id: Optional[str] = None
     credentials_path: Optional[str] = None  # path to service account JSON
+    organization_id: Optional[str] = None  # list projects under org
+    folder_id: Optional[str] = None  # list projects under folder
     updated_at: float = 0.0
 
     def masked(self) -> dict[str, Any]:
@@ -61,6 +67,8 @@ class GCPAuth:
             "mode": self.mode,
             "project_id": self.project_id,
             "credentials_path": "***" if self.credentials_path else None,
+            "organization_id": self.organization_id,
+            "folder_id": self.folder_id,
             "updated_at": self.updated_at,
         }
 
@@ -72,6 +80,8 @@ class AzureAuth:
     tenant_id: Optional[str] = None
     client_id: Optional[str] = None
     client_secret: Optional[str] = None
+    management_group_id: Optional[str] = None  # list subscriptions under mgmt group
+    subscription_ids: list[str] | None = None  # explicit list of subscription IDs
     updated_at: float = 0.0
 
     def masked(self) -> dict[str, Any]:
@@ -88,6 +98,8 @@ class AzureAuth:
             "tenant_id": mask(self.tenant_id),
             "client_id": mask(self.client_id),
             "client_secret": "***" if self.client_secret else None,
+            "management_group_id": self.management_group_id,
+            "subscription_ids": self.subscription_ids,
             "updated_at": self.updated_at,
         }
 
@@ -147,24 +159,36 @@ class AppState:
                 self.aws.session_token = None
             if aws.get("region"):
                 self.aws.region = str(aws.get("region"))
+            self.aws.organization_role_arn = (aws.get("organization_role_arn") or "").strip() or None
+            self.aws.role_assumption_template = (aws.get("role_assumption_template") or "").strip() or None
             self.aws.updated_at = time.time()
 
         gcp = data.get("gcp") or {}
         with self._lock:
-            if gcp.get("project_id"):
+            if gcp.get("project_id") or gcp.get("organization_id") or gcp.get("folder_id"):
                 self.gcp.mode = "credentials" if gcp.get("credentials_path") else "project"
-                self.gcp.project_id = str(gcp.get("project_id"))
+                self.gcp.project_id = str(gcp.get("project_id", "") or "")
                 self.gcp.credentials_path = gcp.get("credentials_path") or None
+                self.gcp.organization_id = (gcp.get("organization_id") or "").strip() or None
+                self.gcp.folder_id = (gcp.get("folder_id") or "").strip() or None
                 self.gcp.updated_at = time.time()
 
         azure = data.get("azure") or {}
         with self._lock:
-            if azure.get("subscription_id") and azure.get("client_id") and azure.get("client_secret"):
+            has_azure = (
+                (azure.get("subscription_id") or azure.get("management_group_id") or azure.get("subscription_ids"))
+                and azure.get("client_id")
+                and azure.get("client_secret")
+            )
+            if has_azure:
                 self.azure.mode = "sp"
-                self.azure.subscription_id = str(azure.get("subscription_id"))
+                self.azure.subscription_id = str(azure.get("subscription_id", "") or "")
                 self.azure.tenant_id = str(azure.get("tenant_id", "")) or None
                 self.azure.client_id = str(azure.get("client_id"))
                 self.azure.client_secret = str(azure.get("client_secret"))
+                self.azure.management_group_id = (azure.get("management_group_id") or "").strip() or None
+                sub_ids = azure.get("subscription_ids")
+                self.azure.subscription_ids = [str(x).strip() for x in sub_ids] if isinstance(sub_ids, list) else None
                 self.azure.updated_at = time.time()
 
         notifications = data.get("notifications") or {}
@@ -215,10 +239,14 @@ class AppState:
                         "region": aws.region,
                     }
                 )
+            current["aws"]["organization_role_arn"] = aws.organization_role_arn
+            current["aws"]["role_assumption_template"] = aws.role_assumption_template
             current.setdefault("gcp", {})
             current["gcp"].update({
                 "project_id": self.gcp.project_id,
                 "credentials_path": self.gcp.credentials_path,
+                "organization_id": self.gcp.organization_id,
+                "folder_id": self.gcp.folder_id,
             })
             current.setdefault("azure", {})
             current["azure"].update({
@@ -226,6 +254,8 @@ class AppState:
                 "tenant_id": self.azure.tenant_id,
                 "client_id": self.azure.client_id,
                 "client_secret": self.azure.client_secret,
+                "management_group_id": self.azure.management_group_id,
+                "subscription_ids": self.azure.subscription_ids,
             })
             if self.notifications:
                 current["notifications"] = dict(self.notifications)
@@ -251,11 +281,22 @@ class AppState:
                 result[k] = v
         return result
 
-    def set_gcp(self, project_id: str, credentials_path: Optional[str] = None, persist: bool = True) -> None:
+    def set_gcp(
+        self,
+        project_id: str,
+        credentials_path: Optional[str] = None,
+        organization_id: Optional[str] = None,
+        folder_id: Optional[str] = None,
+        persist: bool = True,
+    ) -> None:
         with self._lock:
             self.gcp.mode = "credentials" if credentials_path else "project"
             self.gcp.project_id = (project_id or "").strip() or None
             self.gcp.credentials_path = (credentials_path or "").strip() or None
+            if organization_id is not None:
+                self.gcp.organization_id = (organization_id or "").strip() or None
+            if folder_id is not None:
+                self.gcp.folder_id = (folder_id or "").strip() or None
             self.gcp.updated_at = time.time()
         self._apply_gcp_env()
         if persist:
@@ -267,6 +308,8 @@ class AppState:
         tenant_id: str,
         client_id: str,
         client_secret: str,
+        management_group_id: Optional[str] = None,
+        subscription_ids: Optional[list[str]] = None,
         persist: bool = True,
     ) -> None:
         with self._lock:
@@ -275,6 +318,10 @@ class AppState:
             self.azure.tenant_id = (tenant_id or "").strip() or None
             self.azure.client_id = (client_id or "").strip() or None
             self.azure.client_secret = (client_secret or "").strip() or None
+            if management_group_id is not None:
+                self.azure.management_group_id = (management_group_id or "").strip() or None
+            if subscription_ids is not None:
+                self.azure.subscription_ids = [str(x).strip() for x in subscription_ids if str(x).strip()]
             self.azure.updated_at = time.time()
         self._apply_azure_env()
         if persist:
@@ -323,6 +370,8 @@ class AppState:
         secret_access_key: str,
         session_token: Optional[str],
         region: str,
+        organization_role_arn: Optional[str] = None,
+        role_assumption_template: Optional[str] = None,
     ) -> None:
         with self._lock:
             self.aws.mode = "keys"
@@ -331,6 +380,10 @@ class AppState:
             self.aws.session_token = (session_token or "").strip() or None
             self.aws.profile_name = None
             self.aws.region = region.strip() or "us-east-1"
+            if organization_role_arn is not None:
+                self.aws.organization_role_arn = (organization_role_arn or "").strip() or None
+            if role_assumption_template is not None:
+                self.aws.role_assumption_template = (role_assumption_template or "").strip() or None
             self.aws.updated_at = time.time()
         self.apply_env()
 

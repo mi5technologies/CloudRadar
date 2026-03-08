@@ -50,9 +50,9 @@ CloudRadar is a multi-cloud security platform that:
 
 ### Providers (`cspm/providers/`)
 
-- **AWS** – Full discovery for 20+ resource types (EC2, S3, RDS, Lambda, IAM Users/Roles, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS Clusters/Task Defs, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch alarms) with optional progress callbacks.
-- **GCP** – Stub: authentication and project ID; discovery returns empty (extensible).
-- **Azure** – Stub: service principal auth; discovery returns empty (extensible).
+- **AWS** – Full discovery for 20+ resource types (EC2, S3, RDS, Lambda, IAM Users/Roles, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS Clusters/Task Defs, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch alarms) with optional progress callbacks. Supports **multi-account** via Organizations and role-assumption template (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
+- **GCP** – Stub: authentication and project ID; discovery returns empty (extensible). Multi-project via organization/folder ID (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
+- **Azure** – Stub: service principal auth; discovery returns empty (extensible). Multi-subscription via management group or subscription list (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
 
 ### Discovery (`cspm/discovery/`)
 
@@ -81,6 +81,7 @@ Per–resource-type modules that call cloud APIs and return lists of raw resourc
 ### Scanners (`cspm/scanners/`)
 
 - Enrich raw assets with security-relevant attributes (e.g. S3 encryption, IAM wildcards, WAF associations, EBS encryption, EKS endpoint exposure, DynamoDB PITR, SQS public policy).
+- **AI scanner** – Separate scan path for AI resources: AWS Bedrock (guardrails, prompt-attack/PII filters, inference logging, Knowledge Base S3/IAM), Lambda–Bedrock review, SageMaker (notebook internet/encryption, endpoint encryption), plus Vertex AI and Azure OpenAI safety checks. Findings are mapped to OWASP LLM Top 10 and NIST AI RMF. See [AI Scans](AI_SCANS.md).
 
 ### Rule engine (`cspm/rule_engine/`)
 
@@ -137,7 +138,7 @@ Per–resource-type modules that call cloud APIs and return lists of raw resourc
 ## Configuration and Credentials
 
 - **Config** – `config.yaml` (optional), env vars (`AWS_DEFAULT_REGION`, `CSPM_SNAPSHOTS_DIR`, `CSPM_RULES_DIR`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, `AZURE_*`).
-- **Credentials** – Set via Web UI Setup (persisted to `config.yaml` if chosen) or environment; applied to process env before each scan so boto3/SDKs use them.
+- **Credentials** – Set via Web UI Setup (persisted to `config.yaml` if chosen) or environment; applied to process env before each scan so boto3/SDKs use them. The same credentials are used for the **AI scan** (Bedrock, SageMaker, Vertex, Azure OpenAI); see [AI Scans](AI_SCANS.md). For **multi-cloud** and **multi-account** setup, see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md).
 
 ## Extensibility
 

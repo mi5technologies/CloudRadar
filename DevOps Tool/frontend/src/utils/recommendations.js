@@ -203,6 +203,19 @@ export const RECOMMENDATIONS = {
   },
 
   // ── Lambda ──────────────────────────────────────────────────────────────
+  'lambda_no_dlq': {
+    cloud: 'aws',
+    title: 'Lambda Missing Failure Destination (DLQ or OnFailure)',
+    what: 'The Lambda function has no DeadLetterConfig or async OnFailure destination configured.',
+    why: 'When Lambda fails (exception, timeout, or throttling), events can be lost. A DLQ or OnFailure destination ensures failed invocations are captured for retry or alerting.',
+    fix: [
+      'Add an SQS queue or SNS topic as a dead-letter target: Configure in Lambda console → Configuration → Asynchronous invocation → Edit → Configure destination on failure.',
+      'For sync invocations, set DeadLetterConfig on the function to an SQS queue or SNS topic.',
+      'Monitor the DLQ for failed events and set up CloudWatch alarms.',
+    ],
+    docs: 'https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-dlq',
+    severity: 'low',
+  },
   'lambda.hardcoded_secret': {
     cloud: 'aws',
     title: 'Hardcoded Secret Detected in Lambda Function',

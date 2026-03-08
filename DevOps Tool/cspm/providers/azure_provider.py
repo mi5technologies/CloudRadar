@@ -4,9 +4,51 @@ from typing import Any, Callable, Optional
 from cspm.providers.base_provider import BaseProvider
 
 
+def _list_subscriptions_under_management_group(group_id: str, credential) -> list[str]:
+    """List subscription IDs under a management group."""
+    try:
+        from azure.mgmt.managementgroups import ManagementGroupsAPI
+        client = ManagementGroupsAPI(credential=credential)
+        subs = []
+        for s in client.management_group_subscriptions.get_subscriptions_under_management_group(group_id):
+            sub_id = getattr(s, "subscription_id", None) or getattr(s, "id", None)
+            if not sub_id and getattr(s, "name", None):
+                # name may be /providers/.../subscriptions/{id}
+                parts = s.name.split("/")
+                if "subscriptions" in parts:
+                    idx = parts.index("subscriptions")
+                    if idx + 1 < len(parts):
+                        sub_id = parts[idx + 1]
+            if sub_id:
+                subs.append(str(sub_id))
+        return subs
+    except Exception:
+        return []
+
+
 class AzureProvider(BaseProvider):
-    def __init__(self, subscription_id: str | None = None):
-        self.subscription_id = subscription_id
+    def __init__(
+        self,
+        subscription_id: str | None = None,
+        management_group_id: str | None = None,
+        subscription_ids: list[str] | None = None,
+    ):
+        self.subscription_id = (subscription_id or "").strip() or None
+        self.management_group_id = (management_group_id or "").strip() or None
+        self.subscription_ids = subscription_ids or []
+
+    def _is_multi_subscription(self) -> bool:
+        return bool(self.management_group_id or self.subscription_ids)
+
+    def _get_subscription_ids(self) -> list[str]:
+        """Return list of subscription IDs to scan."""
+        if self.subscription_ids:
+            return self.subscription_ids
+        if self.management_group_id:
+            cred = self._get_credential()
+            if cred:
+                return _list_subscriptions_under_management_group(self.management_group_id, cred)
+        return [self.subscription_id] if self.subscription_id else []
 
     def authenticate(self) -> bool:
         try:
@@ -26,6 +68,46 @@ class AzureProvider(BaseProvider):
         self,
         asset_types: list[str] | None = None,
         on_progress: Optional[Callable[[str, str, Optional[str]], None]] = None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        def report(step: str, status: str = "running", detail: str | None = None):
+            if on_progress:
+                on_progress(step, status, detail)
+
+        if self._is_multi_subscription():
+            return self._discover_multi_subscription(asset_types, on_progress)
+
+        return self._discover_single_subscription(asset_types, on_progress)
+
+    def _discover_multi_subscription(
+        self, asset_types: list[str] | None, on_progress: Optional[Callable[[str, str, Optional[str]], None]]
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Discover assets across all subscriptions."""
+        sub_ids = self._get_subscription_ids()
+        if not sub_ids:
+            if on_progress:
+                on_progress("No subscriptions found", "error", None)
+            return {}
+
+        merged: dict[str, list[dict[str, Any]]] = {}
+        cred = self._get_credential()
+        if not cred:
+            return {}
+        orig_sub = self.subscription_id
+        try:
+            for sub_id in sub_ids:
+                self.subscription_id = sub_id
+                raw = self._discover_single_subscription(asset_types, on_progress)
+                for rtype, items in raw.items():
+                    for item in items:
+                        item["account_id"] = sub_id
+                        item["subscription_id"] = sub_id
+                    merged.setdefault(rtype, []).extend(items)
+        finally:
+            self.subscription_id = orig_sub
+        return merged
+
+    def _discover_single_subscription(
+        self, asset_types: list[str] | None, on_progress: Optional[Callable[[str, str, Optional[str]], None]]
     ) -> dict[str, list[dict[str, Any]]]:
         def report(step: str, status: str = "running", detail: str | None = None):
             if on_progress:
@@ -55,7 +137,7 @@ class AzureProvider(BaseProvider):
 
         return result
 
-    def _get_credential(self):
+    def _get_credential(self) -> Any:
         try:
             from azure.identity import DefaultAzureCredential
             return DefaultAzureCredential()

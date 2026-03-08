@@ -27,11 +27,23 @@ class ScanController:
 
     def get_provider(self, cloud: str, **kwargs) -> Any:
         if cloud == "aws":
-            return AWSProvider(region=kwargs.get("region") or self.config.aws_region)
+            return AWSProvider(
+                region=kwargs.get("region") or self.config.aws_region,
+                organization_role_arn=getattr(self.config, "aws_organization_role_arn", None) or kwargs.get("organization_role_arn"),
+                role_assumption_template=getattr(self.config, "aws_role_assumption_template", None) or kwargs.get("role_assumption_template"),
+            )
         if cloud == "azure":
-            return AzureProvider(subscription_id=kwargs.get("subscription_id") or self.config.azure_subscription_id)
+            return AzureProvider(
+                subscription_id=kwargs.get("subscription_id") or self.config.azure_subscription_id,
+                management_group_id=getattr(self.config, "azure_management_group_id", None) or kwargs.get("management_group_id"),
+                subscription_ids=getattr(self.config, "azure_subscription_ids", None) or kwargs.get("subscription_ids"),
+            )
         if cloud == "gcp":
-            return GCPProvider(project_id=kwargs.get("project_id") or self.config.gcp_project)
+            return GCPProvider(
+                project_id=kwargs.get("project_id") or self.config.gcp_project,
+                organization_id=getattr(self.config, "gcp_organization_id", None) or kwargs.get("organization_id"),
+                folder_id=getattr(self.config, "gcp_folder_id", None) or kwargs.get("folder_id"),
+            )
         raise ValueError(f"Unknown cloud: {cloud}")
 
     def run_scan(
@@ -64,6 +76,11 @@ class ScanController:
         report("Enriching and scanning assets", "running", None)
         wrap = lambda s, st: (on_progress(s, st, None) if on_progress else None)
         assets = collect(raw, reg, only_types=only, on_progress=wrap)
+        # Ensure account_id on each asset (single-account fallback)
+        for _rtype, items in assets.items():
+            for a in items:
+                if "account_id" not in a:
+                    a["account_id"] = account_id
         report("Enriching and scanning assets", "success", None)
 
         report("Running rule engine", "running", None)
@@ -92,9 +109,17 @@ class ScanController:
             report("Saving snapshot", "success", None)
 
         report("Scan complete", "success", None)
+        account_ids = []
+        if cloud == "aws" and hasattr(provider, "get_account_ids"):
+            account_ids = provider.get_account_ids()
+        elif cloud == "gcp" and hasattr(provider, "get_project_ids"):
+            account_ids = provider.get_project_ids()
+        elif cloud == "azure" and hasattr(provider, "_get_subscription_ids"):
+            account_ids = provider._get_subscription_ids()
         return {
             "cloud": cloud,
             "account_id": account_id,
+            "account_ids": account_ids if len(account_ids) > 1 else None,
             "region": reg,
             "assets": assets,
             "catalog": catalog,

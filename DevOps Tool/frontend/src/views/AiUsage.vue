@@ -36,6 +36,23 @@
         </span>
       </button>
     </div>
+    <p class="cloud-tabs-hint muted">Select a cloud above to run or view its AI scan. Run a scan for each cloud (AWS, Google Cloud, Azure) to see results for all three.</p>
+
+    <!-- All-cloud status strip: visible at a glance -->
+    <div class="cloud-status-strip">
+      <div v-for="c in CLOUDS" :key="c.id" class="cloud-status-item"
+        :class="{ active: selectedCloud === c.id }"
+        @click="selectCloud(c.id)">
+        <span class="cloud-status-icon" v-html="c.svg"></span>
+        <span class="cloud-status-label">{{ c.label }}</span>
+        <span class="cloud-status-value">
+          <template v-if="summaryByCloud[c.id]">
+            {{ summaryByCloud[c.id].total_findings }} finding{{ summaryByCloud[c.id].total_findings !== 1 ? 's' : '' }}
+          </template>
+          <template v-else>No scan yet</template>
+        </span>
+      </div>
+    </div>
 
     <!-- Configure checks -->
     <div class="card checks-card" v-if="!loading">
@@ -105,6 +122,8 @@
         <div>
           <h3>No {{ cloudLabel }} AI scan yet</h3>
           <p>Run the AI Usage Security scan to check guardrails, content filters, and safety settings for your {{ cloudLabel }} AI services.</p>
+          <p v-if="selectedCloud === 'gcp' && !cloudStatus.gcp?.project_id" class="setup-hint muted">Configure <strong>Google Cloud</strong> (Project ID and credentials) in <strong>Setup</strong> first, then run the scan.</p>
+          <p v-else-if="selectedCloud === 'azure' && !cloudStatus.azure?.subscription_id" class="setup-hint muted">Configure <strong>Azure</strong> (Subscription ID and credentials) in <strong>Setup</strong> first, then run the scan.</p>
           <button class="btn btn-primary" style="margin-top:12px" @click="runScan" :disabled="loading">
             Scan {{ cloudLabel }}
           </button>
@@ -207,6 +226,10 @@
                 <span><strong>Rule:</strong> {{ selectedFinding.rule_id }}</span>
                 <span><strong>Resource:</strong> {{ selectedFinding.resource_id }}</span>
                 <span><strong>Region:</strong> {{ selectedFinding.region }}</span>
+                <template v-if="selectedFinding.owasp_llm || selectedFinding.nist_ai_rmf">
+                  <span v-if="selectedFinding.owasp_llm"><strong>OWASP LLM:</strong> {{ selectedFinding.owasp_llm }}</span>
+                  <span v-if="selectedFinding.nist_ai_rmf"><strong>NIST AI RMF:</strong> {{ selectedFinding.nist_ai_rmf }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -229,6 +252,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { logAudit } from '../utils/auditLog.js'
+import api from '../api.js'
 
 const CLOUDS = [
   { id: 'aws', label: 'AWS',
@@ -250,16 +274,48 @@ const ALL_CHECKS = [
     title: 'No Bedrock Guardrails configured', desc: 'Foundation models available but no Guardrails defined. Prompts and completions are not filtered.' },
   { rule_id: 'ai.bedrock.guardrail_not_ready', cloud: 'aws', severity: 'medium',
     title: 'Guardrail not ready', desc: 'A Bedrock Guardrail exists but status is not READY.' },
+  { rule_id: 'ai.bedrock.guardrail_no_prompt_attack', cloud: 'aws', severity: 'high',
+    title: 'Guardrail missing prompt attack prevention', desc: 'PROMPT_ATTACK filter (jailbreak/injection) not enabled.' },
+  { rule_id: 'ai.bedrock.guardrail_no_pii', cloud: 'aws', severity: 'medium',
+    title: 'Guardrail has no PII redaction', desc: 'PII entities not configured with BLOCK or ANONYMIZE.' },
+  { rule_id: 'ai.bedrock.inference_logging', cloud: 'aws', severity: 'low',
+    title: 'Verify Bedrock inference logging', desc: 'Ensure prompts/completions logging is enabled for audit.' },
+  { rule_id: 'ai.bedrock.knowledge_base_s3_iam', cloud: 'aws', severity: 'medium',
+    title: 'Knowledge Base S3/data source IAM', desc: 'Review role and data source access for Bedrock Knowledge Bases.' },
+  { rule_id: 'ai.lambda_bedrock_review', cloud: 'aws', severity: 'low',
+    title: 'Review Lambda functions that invoke Bedrock', desc: 'Verify IAM, VPC, and CloudWatch logging.' },
+  { rule_id: 'ai.sagemaker_notebook_public', cloud: 'aws', severity: 'medium',
+    title: 'SageMaker notebook has direct internet access', desc: 'Restrict to VPC-only where possible.' },
+  { rule_id: 'ai.sagemaker_notebook_encryption', cloud: 'aws', severity: 'low',
+    title: 'SageMaker notebook not encrypted with CMK', desc: 'Use customer-managed KMS for encryption at rest.' },
+  { rule_id: 'ai.sagemaker_endpoint_encryption', cloud: 'aws', severity: 'low',
+    title: 'SageMaker endpoint without CMK encryption', desc: 'Specify KmsKeyId on endpoint config.' },
   { rule_id: 'ai.aws.unavailable', cloud: 'aws', severity: 'low',
     title: 'Bedrock API unavailable', desc: 'Could not connect to Bedrock. Check credentials and permissions.' },
   { rule_id: 'ai.vertex.safety_review', cloud: 'gcp', severity: 'low',
     title: 'Review Vertex AI safety settings', desc: 'Manually verify safety settings on Vertex AI endpoints.' },
+  { rule_id: 'ai.vertex.safety_in_code', cloud: 'gcp', severity: 'low',
+    title: 'Set safety settings in application code', desc: 'Use SafetySetting with BLOCK_MEDIUM_AND_ABOVE for generate_content.' },
+  { rule_id: 'ai.vertex.logging_review', cloud: 'gcp', severity: 'low',
+    title: 'Verify Vertex AI request logging', desc: 'Enable Cloud Logging for Vertex AI API calls for audit.' },
+  { rule_id: 'ai.vertex.iam_review', cloud: 'gcp', severity: 'low',
+    title: 'Review IAM for Vertex AI endpoints', desc: 'Use least-privilege roles (e.g. roles/aiplatform.user).' },
+  { rule_id: 'ai.vertex.network_review', cloud: 'gcp', severity: 'low',
+    title: 'Verify Vertex AI endpoint network exposure', desc: 'Ensure endpoints are not publicly exposed; use VPC/private access.' },
   { rule_id: 'ai.gcp.unavailable', cloud: 'gcp', severity: 'low',
     title: 'Vertex AI API unavailable', desc: 'Could not initialize Vertex AI.' },
   { rule_id: 'ai.gcp.sdk_missing', cloud: 'gcp', severity: 'low',
     title: 'Vertex AI SDK not installed', desc: 'google-cloud-aiplatform is required.' },
   { rule_id: 'ai.azure.content_filter_review', cloud: 'azure', severity: 'low',
     title: 'Review Azure OpenAI content filters', desc: 'Verify content filters are enabled on Azure OpenAI accounts.' },
+  { rule_id: 'ai.azure.public_network', cloud: 'azure', severity: 'medium',
+    title: 'Azure OpenAI allows public network access', desc: 'Prefer disabling public access and using private endpoints.' },
+  { rule_id: 'ai.azure.encryption_review', cloud: 'azure', severity: 'low',
+    title: 'Review Azure OpenAI encryption (CMK)', desc: 'Consider customer-managed keys for compliance.' },
+  { rule_id: 'ai.azure.diagnostics_review', cloud: 'azure', severity: 'low',
+    title: 'Enable Diagnostic Settings for Azure OpenAI', desc: 'Send logs/metrics to Log Analytics for audit.' },
+  { rule_id: 'ai.azure.managed_identity_review', cloud: 'azure', severity: 'low',
+    title: 'Prefer managed identity for Azure OpenAI', desc: 'Use DefaultAzureCredential or ManagedIdentityCredential instead of keys.' },
   { rule_id: 'ai.azure.unavailable', cloud: 'azure', severity: 'low',
     title: 'Azure OpenAI API unavailable', desc: 'Could not connect to Azure Cognitive Services.' },
   { rule_id: 'ai.azure.sdk_missing', cloud: 'azure', severity: 'low',
@@ -274,6 +330,7 @@ const summary = ref({})
 const summaryByCloud = ref({})
 const findingsByCloud = ref({})
 const selectedFinding = ref(null)
+const cloudStatus = ref({ aws: {}, gcp: {}, azure: {} })
 
 const cloudLabel = computed(() => CLOUDS.find(c => c.id === selectedCloud.value)?.label || selectedCloud.value)
 const hasData = computed(() => Object.keys(summaryByCloud.value).includes(selectedCloud.value))
@@ -358,8 +415,16 @@ async function runScan() {
       .filter(c => !enabledRules.value.has(c.rule_id))
       .map(c => c.rule_id)
     const body = { cloud: selectedCloud.value, skip_rules: skipRules }
-    if (selectedCloud.value === 'aws') body.region = undefined
-    if (selectedCloud.value === 'gcp') body.region = 'us-central1'
+    if (selectedCloud.value === 'aws') {
+      body.region = cloudStatus.value.aws?.region || undefined
+    }
+    if (selectedCloud.value === 'gcp') {
+      body.region = 'us-central1'
+      if (cloudStatus.value.gcp?.project_id) body.project_id = cloudStatus.value.gcp.project_id
+    }
+    if (selectedCloud.value === 'azure') {
+      if (cloudStatus.value.azure?.subscription_id) body.subscription_id = cloudStatus.value.azure.subscription_id
+    }
     const res = await fetch(base + '/api/ai-scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -395,7 +460,7 @@ function selectCloud(id) {
 }
 
 function exportCSV() {
-  const headers = ['rule_id', 'resource_type', 'resource_id', 'resource_name', 'title', 'severity', 'detail', 'remediation', 'region']
+  const headers = ['rule_id', 'resource_type', 'resource_id', 'resource_name', 'title', 'severity', 'detail', 'remediation', 'region', 'owasp_llm', 'nist_ai_rmf']
   const rows = findings.value.map(f => headers.map(h => `"${String(f[h] || '').replace(/"/g, '""')}"`).join(','))
   const csv = [headers.join(','), ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -406,7 +471,12 @@ function exportCSV() {
   URL.revokeObjectURL(a.href)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    cloudStatus.value = await api.getStatus()
+  } catch (_) {
+    cloudStatus.value = { aws: {}, gcp: {}, azure: {} }
+  }
   selectCloud(selectedCloud.value)
 })
 </script>
@@ -416,7 +486,8 @@ onMounted(() => {
 .ai-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
 .ai-header h1 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 700; }
 .ai-header-actions { display: flex; gap: 10px; flex-shrink: 0; }
-.cloud-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.cloud-tabs { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.cloud-tabs-hint { font-size: 0.82rem; margin: 0 0 20px; color: var(--text-muted); }
 .cloud-tab {
   display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px;
   background: var(--bg-el); border: 1px solid var(--border); color: var(--text-muted);
@@ -425,8 +496,23 @@ onMounted(() => {
 .cloud-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
 .cloud-tab.active { color: var(--text); font-weight: 600; }
 .cloud-tab-badge { margin-left: 4px; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; background: rgba(239,68,68,0.2); color: #f87171; }
+
+.cloud-status-strip { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.cloud-status-item {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px;
+  background: var(--bg-el); border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 0.88rem; cursor: pointer; transition: all 0.15s; flex: 1; min-width: 140px;
+}
+.cloud-status-item:hover { background: rgba(255,255,255,0.06); color: var(--text); border-color: var(--border); }
+.cloud-status-item.active { color: var(--text); font-weight: 600; border-color: var(--accent); background: rgba(14,165,233,0.08); }
+.cloud-status-icon { display: flex; align-items: center; }
+.cloud-status-icon :deep(svg) { width: 20px; height: 20px; }
+.cloud-status-label { font-weight: 500; }
+.cloud-status-value { margin-left: auto; font-size: 0.8rem; opacity: 0.9; }
+
 .no-scan-card, .loading-card, .error-card { padding: 32px; }
 .no-scan-inner { display: flex; align-items: center; gap: 24px; }
+.setup-hint { font-size: 0.82rem; margin-top: 8px; }
 .no-scan-icon { font-size: 2.5rem; display: flex; align-items: center; flex-shrink: 0; }
 .no-scan-icon :deep(svg) { width: 48px; height: 48px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }

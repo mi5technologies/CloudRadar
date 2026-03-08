@@ -17,6 +17,7 @@ from cspm.scanners import (
     secretsmanager_scanner,
     sns_scanner,
     cloudfront_scanner,
+    stepfunctions_scanner,
 )
 
 
@@ -139,5 +140,9 @@ def collect(
         report("Scanning CloudFront distributions", "running")
         result["cloudfront"] = cloudfront_scanner.scan_cloudfront(raw_assets["cloudfront"])
         report("Scanning CloudFront distributions", "success")
+    if raw_assets.get("stepfunctions") and _include("stepfunctions"):
+        report("Scanning Step Functions state machines", "running")
+        result["stepfunctions"] = stepfunctions_scanner.scan_stepfunctions(raw_assets["stepfunctions"])
+        report("Scanning Step Functions state machines", "success")
 
     return result

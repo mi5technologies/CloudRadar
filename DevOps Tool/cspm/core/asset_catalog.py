@@ -17,8 +17,8 @@ def build_catalog(
                 "id": a.get("id") or a.get("name") or a.get("arn") or "",
                 "type": resource_type,
                 "cloud": cloud,
-                "account_id": account_id,
-                "region": region,
+                "account_id": a.get("account_id") or account_id,
+                "region": a.get("region") or region,
                 "tags": a.get("tags") or {},
                 "last_seen": datetime.utcnow().isoformat() + "Z",
                 "metadata": _safe_metadata(a),
@@ -42,6 +42,7 @@ def filter_catalog(
     catalog: list[dict],
     cloud: str | None = None,
     resource_type: str | None = None,
+    account_id: str | None = None,
     tag_key: str | None = None,
     tag_value: str | None = None,
 ) -> list[dict]:
@@ -50,6 +51,8 @@ def filter_catalog(
         out = [e for e in out if e.get("cloud") == cloud]
     if resource_type:
         out = [e for e in out if e.get("type") == resource_type]
+    if account_id:
+        out = [e for e in out if e.get("account_id") == account_id]
     if tag_key:
         out = [e for e in out if (e.get("tags") or {}).get(tag_key) is not None]
         if tag_value:
