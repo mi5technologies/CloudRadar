@@ -19,7 +19,7 @@ class SnapshotManager:
         findings: list[dict],
         catalog: list[dict],
     ) -> str:
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
         snapshot_id = f"{cloud}_{account_id}_{region}_{ts}"
         path = self.base_dir / f"{snapshot_id}.json"
         data = {

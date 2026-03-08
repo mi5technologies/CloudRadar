@@ -106,12 +106,16 @@ import api from '../api'
 
 // Hardcoded fallback — always shown even if backend is unreachable
 const FALLBACK_TESTS = [
-  { module: 'test_rule_engine',  display_name: 'Rule Engine',           description: 'Validates security rules fire correctly (e.g. open S3 bucket, public RDS, missing encryption) and that severity/finding fields are accurate.', exists: true },
-  { module: 'test_s3_scanner',   display_name: 'S3 Scanner',            description: 'Tests S3 bucket scanner: public-access-block disabled, missing encryption, bucket policy exposure, and correct finding generation.', exists: true },
-  { module: 'test_compliance',   display_name: 'Compliance Frameworks', description: 'Verifies all 5 compliance frameworks (CIS, SOC2, HIPAA, PCI DSS, ISO 27001) map findings to controls correctly and produce pass/fail reports.', exists: true },
-  { module: 'test_remediation',  display_name: 'Remediation Engine',    description: 'Checks that auto-remediation actions (enable S3 encryption, enable EBS encryption, etc.) are generated correctly for each finding type.', exists: true },
-  { module: 'test_attack_paths', display_name: 'Attack Paths',          description: 'Validates attack path graph construction: public EC2 → open security group → sensitive RDS chains are detected and scored.', exists: true },
-  { module: 'test_scanners',     display_name: 'All Scanners',          description: 'Integration tests for EC2, RDS, IAM, Lambda, CloudTrail, VPC, EBS, EKS, ECS, KMS, API Gateway, SQS, DynamoDB, GuardDuty, and CloudWatch scanners.', exists: true },
+  { module: 'test_rule_engine',        display_name: 'Rule Engine',           description: 'Validates security rules fire correctly (e.g. open S3 bucket, public RDS, missing encryption) and that severity/finding fields are accurate.', exists: true },
+  { module: 'test_s3_scanner',         display_name: 'S3 Scanner',            description: 'Tests S3 bucket scanner: public-access-block disabled, missing encryption, bucket policy exposure, and correct finding generation.', exists: true },
+  { module: 'test_compliance',         display_name: 'Compliance Frameworks', description: 'Verifies all 5 compliance frameworks (CIS, SOC2, HIPAA, PCI DSS, ISO 27001) map findings to controls correctly and produce pass/fail reports.', exists: true },
+  { module: 'test_remediation',        display_name: 'Remediation Engine',    description: 'Checks that auto-remediation actions (enable S3 encryption, enable EBS encryption, etc.) are generated correctly for each finding type, including dry-run and idempotent apply.', exists: true },
+  { module: 'test_attack_paths',       display_name: 'Attack Paths',          description: 'Validates attack path graph construction: public EC2 → open security group → sensitive RDS chains are detected and scored.', exists: true },
+  { module: 'test_scanners',           display_name: 'All Scanners',          description: 'Integration tests for EC2, RDS, IAM, Lambda, CloudTrail, VPC, EBS, EKS, ECS, KMS, API Gateway, SQS, DynamoDB, GuardDuty, and CloudWatch scanners.', exists: true },
+  { module: 'test_cloudfront_scanner', display_name: 'CloudFront Scanner',    description: 'Tests all 8 CloudFront security rules: HTTP allowed, missing WAF, outdated TLS, missing security headers, S3 origin without OAC, logging disabled, and geo-restriction. Runs without AWS credentials.', exists: true },
+  { module: 'test_risk_engine',        display_name: 'Risk Engine',           description: 'Validates risk score computation: severity weights, multi-finding accumulation, case-insensitive severity handling, and the risk_summary report helper.', exists: true },
+  { module: 'test_api_endpoints',      display_name: 'API Endpoints',         description: 'Smoke-tests the FastAPI backend: health check, status, setup input validation (AWS/GCP/Azure), test-runner list/run/status routes, and findings/summary endpoints.', exists: true },
+  { module: 'test_cost_scanner',       display_name: 'Cost Scanner',          description: 'Tests all cost optimisation rules across AWS, GCP, and Azure: unattached EBS volumes, stopped EC2/RDS/GCE/Azure VMs, missing cost-allocation tags/labels, oversized Lambda, large on-demand instances, and summary KPI structure.', exists: true },
 ]
 
 const availableTests = ref(FALLBACK_TESTS)

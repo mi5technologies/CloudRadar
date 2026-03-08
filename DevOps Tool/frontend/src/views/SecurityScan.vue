@@ -575,7 +575,7 @@ onUnmounted(() => { if (unsubscribe) unsubscribe() })
 .mode-toggle-row { display: flex; gap: 6px; margin-bottom: 20px; }
 .mode-btn {
   display: inline-flex; align-items: center; gap: 7px; padding: 7px 16px;
-  border-radius: 8px; border: 1px solid var(--border); background: rgba(15,23,42,0.5);
+  border-radius: 8px; border: 1px solid var(--border); background: var(--bg-el);
   color: var(--text-muted); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.15s;
 }
 .mode-btn:hover { color: var(--text); border-color: rgba(99,102,241,0.4); }
@@ -585,13 +585,13 @@ onUnmounted(() => { if (unsubscribe) unsubscribe() })
 .multi-cloud-grid { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 18px; }
 .multi-cloud-card {
   display: flex; align-items: center; gap: 9px; padding: 10px 16px;
-  border-radius: 10px; border: 1px solid var(--border); background: rgba(15,23,42,0.5);
+  border-radius: 10px; border: 1px solid var(--border); background: var(--bg-el);
   cursor: pointer; transition: all 0.15s; user-select: none; flex: 1; min-width: 160px;
 }
 .multi-cloud-card:hover { border-color: rgba(99,102,241,0.35); }
 .mc-check {
   width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border);
-  background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center;
+  background: var(--bg-el-hi); display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: all 0.13s;
 }
 .mc-aws.mc-selected    { border-color: rgba(255,153,0,0.4);   background: rgba(255,153,0,0.07); }
@@ -633,7 +633,7 @@ onUnmounted(() => { if (unsubscribe) unsubscribe() })
 .cloud-pick-btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 16px; border-radius: 9px;
-  border: 1px solid var(--border); background: rgba(15,23,42,0.5);
+  border: 1px solid var(--border); background: var(--bg-el);
   color: var(--text-muted); font-size: 0.88rem; font-weight: 500;
   cursor: pointer; transition: all 0.15s;
 }

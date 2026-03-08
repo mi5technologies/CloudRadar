@@ -20,6 +20,7 @@ const routes = [
   { path: '/tests', name: 'Tests', component: () => import('../views/Tests.vue'), meta: { title: 'Tests' } },
   { path: '/audit/logs', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue'), meta: { title: 'Audit Logs' } },
   { path: '/scan-history', name: 'ScanHistory', component: () => import('../views/ScanHistory.vue'), meta: { title: 'Scan History' } },
+  { path: '/cost', name: 'Cost', component: () => import('../views/Cost.vue'), meta: { title: 'Cost Optimisation' } },
 ]
 
 const router = createRouter({

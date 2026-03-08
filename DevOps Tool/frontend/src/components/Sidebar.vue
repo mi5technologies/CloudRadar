@@ -182,6 +182,26 @@
         </transition>
       </div>
 
+      <!-- ── Cost ── -->
+      <div class="nav-group nav-group-cost" :class="{ 'group-closed': !groups.cost && !collapsed }">
+        <button class="nav-group-header nav-group-cost-header" @click="!collapsed && toggleGroup('cost')" :class="{ clickable: !collapsed }" v-show="!collapsed">
+          <span class="nav-group-label-text">Cost</span>
+          <svg class="nav-group-arrow" :class="{ open: groups.cost }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <transition name="group-slide">
+          <div class="nav-group-items" v-show="collapsed || groups.cost">
+            <router-link to="/cost" class="nav-item nav-item-cost" :title="collapsed ? 'Cost Optimisation' : ''">
+              <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+              </svg>
+              <span class="nav-label" v-show="!collapsed">Cost optimisation</span>
+            </router-link>
+          </div>
+        </transition>
+      </div>
+
       <!-- ── Tests ── -->
       <div class="nav-group nav-group-tests" :class="{ 'group-closed': !groups.tests && !collapsed }">
         <button class="nav-group-header nav-group-tests-header" @click="!collapsed && toggleGroup('tests')" :class="{ clickable: !collapsed }" v-show="!collapsed">
@@ -288,6 +308,7 @@ const groups = ref({
   compliance: true,
   governance: true,
   pentest: true,
+  cost: true,
   tests: true,
 })
 

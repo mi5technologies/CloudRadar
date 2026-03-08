@@ -39,12 +39,16 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 
 # All available test files, mapped to a display name
 _ALL_TEST_FILES = {
-    "test_rule_engine": "Rule Engine",
-    "test_s3_scanner": "S3 Scanner",
-    "test_compliance": "Compliance Frameworks",
-    "test_remediation": "Remediation Engine",
-    "test_attack_paths": "Attack Paths",
-    "test_scanners": "Scanners",
+    "test_rule_engine":         "Rule Engine",
+    "test_s3_scanner":          "S3 Scanner",
+    "test_compliance":          "Compliance Frameworks",
+    "test_remediation":         "Remediation Engine",
+    "test_attack_paths":        "Attack Paths",
+    "test_scanners":            "All Scanners",
+    "test_cloudfront_scanner":  "CloudFront Scanner",
+    "test_risk_engine":         "Risk Engine",
+    "test_api_endpoints":       "API Endpoints",
+    "test_cost_scanner":        "Cost Scanner",
 }
 
 # Regex patterns for parsing pytest -v output

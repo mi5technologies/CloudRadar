@@ -539,7 +539,7 @@ onMounted(async () => {
 .cloud-tab {
   display: flex; align-items: center; gap: 8px; padding: 9px 16px;
   border-radius: 10px; border: 1px solid var(--border); cursor: pointer;
-  background: rgba(15,23,42,0.4); color: var(--text-muted);
+  background: var(--bg-el-lo); color: var(--text-muted);
   font-size: 0.88rem; font-weight: 500; transition: all 0.15s;
 }
 .cloud-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
@@ -587,7 +587,7 @@ onMounted(async () => {
 .cloud-badge-inline.cloud-gcp   { background: rgba(66,133,244,0.15); color: #60a5fa; }
 .cloud-badge-inline.cloud-azure { background: rgba(0,120,212,0.15);  color: #93c5fd; }
 .recs-list { display: flex; flex-direction: column; gap: 8px; }
-.rec-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-radius: 10px; background: rgba(15,23,42,0.4); border: 1px solid var(--border); transition: background 0.15s, border-color 0.15s; }
+.rec-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-radius: 10px; background: var(--bg-el-lo); border: 1px solid var(--border); transition: background 0.15s, border-color 0.15s; }
 .rec-item:hover { background: rgba(14,165,233,0.05); border-color: rgba(14,165,233,0.2); }
 .rec-item.rec-sev-critical { border-left: 3px solid #ef4444; }
 .rec-item.rec-sev-high     { border-left: 3px solid #f97316; }
@@ -619,7 +619,7 @@ onMounted(async () => {
 .bottom-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
 @media (max-width: 680px) { .bottom-grid { grid-template-columns: 1fr; } }
 .quick-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 14px; }
-.qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 10px; background: rgba(15,23,42,0.5); border: 1px solid var(--border); text-decoration: none; color: var(--text-muted); font-size: 0.78rem; font-weight: 500; transition: all 0.15s; text-align: center; }
+.qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 10px; background: var(--bg-el); border: 1px solid var(--border); text-decoration: none; color: var(--text-muted); font-size: 0.78rem; font-weight: 500; transition: all 0.15s; text-align: center; }
 .qa-btn:hover { background: rgba(14,165,233,0.1); color: var(--text); border-color: rgba(14,165,233,0.2); }
 .qa-icon { font-size: 1.3rem; }
 .palette-hint { font-size: 0.78rem; }

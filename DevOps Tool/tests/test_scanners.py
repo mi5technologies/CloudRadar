@@ -22,8 +22,10 @@ def test_rule_loader():
 
 
 def test_rule_engine_evaluate():
+    # op="true" means "field should be True — finding when it is NOT True (i.e. False)"
+    # This correctly detects encryption_enabled=False as a security finding.
     engine = RuleEngine([
-        {"id": "r1", "resource_type": "s3", "condition": {"op": "false", "key": "encryption_enabled"}},
+        {"id": "r1", "resource_type": "s3", "condition": {"op": "true", "key": "encryption_enabled"}},
     ])
     assets = {"s3": [{"id": "b1", "type": "s3", "encryption_enabled": False}]}
     findings = engine.evaluate(assets)

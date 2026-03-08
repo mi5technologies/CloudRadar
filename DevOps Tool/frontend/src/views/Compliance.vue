@@ -380,7 +380,7 @@ async function run() {
 .cloud-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .cloud-pick-btn {
   display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px;
-  border-radius: 9px; border: 1px solid var(--border); background: rgba(15,23,42,0.5);
+  border-radius: 9px; border: 1px solid var(--border); background: var(--bg-el);
   color: var(--text-muted); font-size: 0.87rem; font-weight: 500; cursor: pointer; transition: all 0.15s;
 }
 .cloud-pick-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
@@ -433,7 +433,7 @@ async function run() {
 .gap-name { font-size: 0.88rem; font-weight: 600; color: var(--text); }
 .gap-arrow { color: var(--text-muted); transition: transform 0.2s; flex-shrink: 0; }
 .gap-arrow.open { transform: rotate(180deg); }
-.gap-body { padding: 14px 16px 16px; background: rgba(15,23,42,0.3); border-top: 1px solid var(--border); }
+.gap-body { padding: 14px 16px 16px; background: var(--bg-el-xlo); border-top: 1px solid var(--border); }
 .gap-desc { font-size: 0.84rem; color: var(--text-muted); margin: 0 0 12px; line-height: 1.5; }
 
 .gap-rec { background: rgba(14,165,233,0.05); border: 1px solid rgba(14,165,233,0.15); border-radius: 10px; padding: 14px; }
@@ -455,7 +455,7 @@ async function run() {
 .passed-id   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); width: 90px; flex-shrink: 0; }
 .passed-name { color: var(--text-muted); }
 
-.raw-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); background: rgba(15,23,42,0.5); user-select: none; }
+.raw-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); background: var(--bg-el); user-select: none; }
 .raw-toggle:hover { color: var(--text); }
 .raw-pre { margin: 0; padding: 14px; font-size: 0.75rem; background: rgba(0,0,0,0.3); color: var(--text-muted); overflow-x: auto; max-height: 400px; }
 </style>

@@ -289,7 +289,7 @@ function exportCsv() {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
-  background: rgba(15,23,42,0.5);
+  background: var(--bg-el);
   white-space: nowrap;
 }
 .logs-table td {

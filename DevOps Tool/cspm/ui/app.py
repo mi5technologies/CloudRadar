@@ -34,6 +34,7 @@ from cspm.ui.scheduler import scheduler_manager
 from cspm.ui.state import app_state, CONFIG_PATH_DEFAULT
 from cspm.ui import jobs as jobs_module
 from cspm.ui import test_runner
+from cspm.scanners.cost_scanner import scan_cost
 
 
 UI_DIR = Path(__file__).resolve().parent
@@ -395,6 +396,41 @@ def api_attack_paths_run(req: AttackPathRunRequest) -> dict[str, Any]:
                 )
             ] or paths  # fall back to all paths if filter removes everything
     return {"paths": paths, "count": len(paths)}
+
+
+# ---------- Cost optimisation ----------
+
+@app.post("/api/cost")
+async def api_cost(request: Request) -> dict[str, Any]:
+    """Run a cost optimisation analysis on the last scan result (or trigger a fresh scan).
+
+    POST body (all optional):
+        cloud   "aws" | "gcp" | "azure"  (default: "aws")
+        region  AWS region string         (default: "us-east-1")
+    """
+    body = await request.json() or {}
+    cloud = (body.get("cloud") or "aws").strip().lower()
+    if cloud not in ("aws", "gcp", "azure"):
+        cloud = "aws"
+    region = (body.get("region") or "us-east-1").strip() or "us-east-1"
+
+    # Try to reuse last scan assets first to avoid a slow re-scan
+    last = jobs_module.get_last_scan_result()
+    assets: dict[str, Any] = {}
+    if last and last.get("cloud") == cloud:
+        assets = last.get("assets", {}) or {}
+
+    # If no cached assets for this cloud, run a lightweight discovery scan
+    if not assets:
+        cfg = Config()
+        ctrl = ScanController(cfg)
+        scan = ctrl.run_scan(cloud=cloud, region=region)
+        if scan.get("error"):
+            return JSONResponse(status_code=400, content={"error": scan.get("error")})
+        assets = scan.get("assets", {}) or {}
+
+    result = scan_cost(assets=assets, cloud=cloud)
+    return result
 
 
 # ---------- Scheduler ----------

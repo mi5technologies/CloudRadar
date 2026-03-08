@@ -161,7 +161,7 @@ async function run() {
 .cloud-pick-btn {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 7px 14px; border-radius: 9px; border: 1px solid var(--border);
-  background: rgba(15,23,42,0.5); color: var(--text-muted);
+  background: var(--bg-el); color: var(--text-muted);
   font-size: 0.87rem; font-weight: 500; cursor: pointer; transition: all 0.15s;
 }
 .cloud-pick-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }

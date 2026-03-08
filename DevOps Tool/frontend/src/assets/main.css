@@ -17,6 +17,13 @@
   --running: #eab308;
   --error: #ef4444;
   --sidebar-width: 260px;
+
+  /* Element-level backgrounds used by buttons / tabs / table headers */
+  --bg-el:    rgba(15, 23, 42, 0.50);
+  --bg-el-lo: rgba(15, 23, 42, 0.40);
+  --bg-el-hi: rgba(15, 23, 42, 0.60);
+  --bg-el-xlo:rgba(15, 23, 42, 0.30);
+  --bg-el-xhi:rgba(15, 23, 42, 0.80);
 }
 
 /* Light theme */
@@ -35,6 +42,13 @@
   --accent-amber-hover: #b45309;
   --accent-purple: #7c3aed;
   --accent-purple-hover: #6d28d9;
+
+  /* Override element backgrounds to be light in light mode */
+  --bg-el:    rgba(255, 255, 255, 0.90);
+  --bg-el-lo: rgba(255, 255, 255, 0.75);
+  --bg-el-hi: #ffffff;
+  --bg-el-xlo:rgba(255, 255, 255, 0.65);
+  --bg-el-xhi:#ffffff;
 }
 /* Light mode: richer page background for glassmorphism depth */
 .theme-light body {
@@ -124,6 +138,11 @@
 .theme-light .nav-group-tests .nav-item:hover { color: #6b21a8; background: rgba(126,34,206,0.12); }
 .theme-light .nav-group-tests .nav-item.router-link-active { color: #581c87; background: rgba(126,34,206,0.18); }
 .theme-light .nav-group-tests .nav-group-label { color: #7e22ce; background: rgba(126,34,206,0.1); border-left-color: #9333ea; }
+/* Cost group */
+.theme-light .nav-group-cost .nav-item { color: #15803d; }
+.theme-light .nav-group-cost .nav-item:hover { color: #166534; background: rgba(22,163,74,0.1); }
+.theme-light .nav-group-cost .nav-item.router-link-active { color: #14532d; background: rgba(22,163,74,0.15); }
+.theme-light .nav-group-cost .nav-group-label { color: #15803d; background: rgba(22,163,74,0.08); border-left-color: #22c55e; }
 .theme-light .nav-group-docs { border-color: rgba(71, 85, 105, 0.2); }
 .theme-light .collapse-btn { border-color: rgba(71,85,105,0.25); color: #64748b; }
 .theme-light .collapse-btn:hover { background: rgba(71,85,105,0.15); color: #0f172a; }
@@ -150,6 +169,158 @@
 .theme-light .theme-toggle:hover { background: rgba(71, 85, 105, 0.3); }
 .theme-light .theme-toggle.active { background: var(--accent); color: #fff; }
 .theme-light .theme-toggle.active:hover { background: var(--accent-hover); color: #fff; }
+
+/* ── Light mode: Dashboard recommendation & quick-action items ── */
+
+/* Cloud tabs */
+.theme-light .cloud-tab {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(71,85,105,0.2) !important;
+  color: #475569 !important;
+}
+.theme-light .cloud-tab:hover {
+  background: rgba(255,255,255,0.9) !important;
+  color: #0f172a !important;
+}
+.theme-light .cloud-tab.active { color: #0f172a !important; }
+
+/* Recommendation list items */
+.theme-light .rec-item {
+  background: #fff !important;
+  border-color: rgba(71,85,105,0.15) !important;
+}
+.theme-light .rec-item:hover {
+  background: rgba(2,132,199,0.05) !important;
+  border-color: rgba(2,132,199,0.25) !important;
+}
+.theme-light .rec-title  { color: #0f172a !important; }
+.theme-light .rec-what   { color: #475569 !important; }
+.theme-light .rec-fix-first { color: var(--accent) !important; }
+.theme-light .rec-num    { background: rgba(2,132,199,0.12) !important; color: var(--accent) !important; }
+.theme-light .rec-docs-btn { background: rgba(71,85,105,0.08) !important; color: #64748b !important; }
+.theme-light .rec-docs-btn:hover { background: rgba(2,132,199,0.12) !important; color: var(--accent) !important; }
+
+/* Severity badges — readable on light */
+.theme-light .badge-critical { background: rgba(239,68,68,0.12)  !important; color: #dc2626 !important; }
+.theme-light .badge-high     { background: rgba(249,115,22,0.12) !important; color: #ea580c !important; }
+.theme-light .badge-medium   { background: rgba(245,158,11,0.12) !important; color: #d97706 !important; }
+.theme-light .badge-low      { background: rgba(34,197,94,0.12)  !important; color: #16a34a !important; }
+
+/* Quick wins panel items */
+.theme-light .rec-item-qw {
+  background: rgba(34,197,94,0.06) !important;
+  border-color: rgba(34,197,94,0.2) !important;
+}
+.theme-light .rec-item-qw:hover {
+  background: rgba(34,197,94,0.1) !important;
+  border-color: rgba(34,197,94,0.3) !important;
+}
+
+/* Quick Actions buttons */
+.theme-light .qa-btn {
+  background: #fff !important;
+  border-color: rgba(71,85,105,0.2) !important;
+  color: #334155 !important;
+}
+.theme-light .qa-btn:hover {
+  background: rgba(2,132,199,0.08) !important;
+  color: #0369a1 !important;
+  border-color: rgba(2,132,199,0.25) !important;
+}
+
+/* Status panel */
+.theme-light .status-ok   { background: rgba(34,197,94,0.12)  !important; color: #15803d !important; }
+.theme-light .status-none { background: rgba(71,85,105,0.1)   !important; color: #64748b !important; }
+.theme-light .status-mode { color: #0f172a !important; }
+
+/* Remediation progress */
+.theme-light .rem-strip {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(71,85,105,0.18) !important;
+}
+.theme-light .rem-strip-left { color: #475569 !important; }
+.theme-light .rem-detail     { color: #64748b !important; }
+.theme-light .rem-progress-bar-wrap { background: rgba(71,85,105,0.1) !important; }
+.theme-light .rem-stat       { color: #64748b !important; }
+.theme-light .rem-stat-fixed { color: #16a34a !important; }
+.theme-light .rem-stat-open  { color: #ea580c !important; }
+
+/* kbd hint */
+.theme-light .palette-hint kbd {
+  background: rgba(71,85,105,0.1) !important;
+  border-color: rgba(71,85,105,0.2) !important;
+  color: #334155 !important;
+}
+
+/* Cloud-tab badge */
+.theme-light .cloud-tab-badge {
+  background: rgba(2,132,199,0.12) !important;
+  color: var(--accent) !important;
+}
+
+/* Cloud badge inline (card headings) */
+.theme-light .cloud-badge-inline.cloud-aws   { background: rgba(255,153,0,0.12)  !important; color: #c2410c !important; }
+.theme-light .cloud-badge-inline.cloud-gcp   { background: rgba(66,133,244,0.12) !important; color: #1d4ed8 !important; }
+.theme-light .cloud-badge-inline.cloud-azure { background: rgba(0,120,212,0.12)  !important; color: #1d4ed8 !important; }
+
+/* Quick wins & count badges */
+.theme-light .quick-wins-badge { background: rgba(34,197,94,0.12) !important; color: #15803d !important; }
+.theme-light .rec-source-label { color: #64748b !important; }
+.theme-light .rec-count-badge  { background: rgba(2,132,199,0.1) !important; color: var(--accent) !important; }
+
+/* ── Light mode: active / selected state text colours (too bright on white) ── */
+
+/* Scan mode & cloud-pick buttons (SecurityScan) */
+.theme-light .mode-btn         { color: #334155 !important; border-color: rgba(71,85,105,0.2) !important; }
+.theme-light .mode-btn.active  { background: rgba(99,102,241,0.1) !important; border-color: rgba(99,102,241,0.35) !important; color: #4f46e5 !important; }
+.theme-light .cloud-pick-btn   { color: #475569 !important; }
+.theme-light .cloud-pick-btn:hover { color: #0f172a !important; }
+.theme-light .cpb-aws.active   { background: rgba(255,153,0,0.12)   !important; border-color: rgba(255,153,0,0.4)   !important; color: #c2410c !important; }
+.theme-light .cpb-gcp.active   { background: rgba(66,133,244,0.12)  !important; border-color: rgba(66,133,244,0.4)  !important; color: #1d4ed8 !important; }
+.theme-light .cpb-azure.active { background: rgba(0,120,212,0.12)   !important; border-color: rgba(0,120,212,0.4)   !important; color: #1e40af !important; }
+
+/* Multi-cloud scan cards */
+.theme-light .mc-card          { color: #334155 !important; }
+.theme-light .mc-status-ok     { background: rgba(34,197,94,0.12)   !important; color: #15803d !important; }
+.theme-light .mc-status-none   { background: rgba(71,85,105,0.1)    !important; color: #64748b !important; }
+.theme-light .mc-aws.mc-selected   .mc-check { background: rgba(255,153,0,0.15)   !important; color: #c2410c !important; border-color: #ea580c !important; }
+.theme-light .mc-gcp.mc-selected   .mc-check { background: rgba(66,133,244,0.15)  !important; color: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+.theme-light .mc-azure.mc-selected .mc-check { background: rgba(0,120,212,0.15)   !important; color: #1e40af !important; border-color: #1e40af !important; }
+
+/* Multi-progress cards (parallel scan) */
+.theme-light .mpc-running { background: rgba(234,179,8,0.12)  !important; color: #b45309 !important; }
+.theme-light .mpc-ok      { background: rgba(34,197,94,0.12)  !important; color: #15803d !important; }
+.theme-light .mpc-fail    { background: rgba(239,68,68,0.12)  !important; color: #dc2626 !important; }
+
+/* Scan done banner */
+.theme-light .scan-done-banner { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.25) !important; color: #15803d !important; }
+
+/* Filter row selects & search input (Findings) */
+.theme-light .filter-select    { background: #fff !important; color: #0f172a !important; border-color: rgba(71,85,105,0.25) !important; }
+.theme-light .search-input     { background: #fff !important; color: #0f172a !important; border-color: rgba(71,85,105,0.25) !important; }
+
+/* Table header cells across pages */
+.theme-light .findings-table th,
+.theme-light .history-table th { background: rgba(241,245,249,0.9) !important; color: #475569 !important; border-color: rgba(71,85,105,0.15) !important; }
+
+/* Summary / remediation strip */
+.theme-light .summary-strip    { background: #fff !important; border-color: rgba(71,85,105,0.15) !important; color: #334155 !important; }
+
+/* Slide-over metadata & remediation panes (Findings) */
+.theme-light .so-meta          { background: rgba(241,245,249,0.8) !important; border-color: rgba(71,85,105,0.15) !important; }
+.theme-light .so-remediate     { background: rgba(241,245,249,0.8) !important; border-color: rgba(71,85,105,0.15) !important; }
+.theme-light .raw-title        { background: rgba(241,245,249,0.9) !important; color: #475569 !important; }
+
+/* Compliance / Governance gap bodies */
+.theme-light .gap-body         { background: rgba(241,245,249,0.8) !important; border-color: rgba(71,85,105,0.12) !important; }
+.theme-light .raw-toggle       { background: rgba(241,245,249,0.9) !important; color: #475569 !important; }
+
+/* Inline inputs */
+.theme-light .inline-input-group input { background: #fff !important; color: #0f172a !important; border-color: rgba(71,85,105,0.25) !important; }
+
+/* Governance / Pentest / Vulnerabilities / AuditLogs cloud tabs */
+.theme-light .tab-btn          { color: #475569 !important; }
+.theme-light .tab-btn.active   { color: #0f172a !important; }
 
 * {
   box-sizing: border-box;

@@ -152,7 +152,7 @@ function sevPct(scan, level) {
 .empty-state { padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .empty-state p { color: var(--text-muted); font-size: 0.9rem; max-width: 320px; }
 .history-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-.history-table th { padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-bottom: 1px solid var(--border); background: rgba(15,23,42,0.4); white-space: nowrap; }
+.history-table th { padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg-el-lo); white-space: nowrap; }
 .history-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .history-row { cursor: pointer; transition: background 0.12s; }
 .history-row:hover { background: rgba(14,165,233,0.05); }

@@ -1529,9 +1529,164 @@ export const RECOMMENDATIONS = {
     docs: 'https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/georestrictions.html',
     severity: 'low',
   },
-}
 
-// ─── Per-cloud top recommendations used on Dashboard ────────────────────────
+  // ─── Cost optimisation — AWS ────────────────────────────────────────────
+  'cost.ebs_unattached': {
+    cloud: 'aws', title: 'Unattached EBS Volume',
+    what: 'An EBS volume is in "available" state — not attached to any EC2 instance — and is accumulating storage charges.',
+    why: 'Unattached EBS volumes cost ~$0.08–$0.10/GB/month. A 1 TB volume unattached for a year costs ~$960 with no benefit.',
+    fix: [
+      'Identify the volume: `aws ec2 describe-volumes --filters Name=status,Values=available`',
+      'Snapshot if the data may be needed: `aws ec2 create-snapshot --volume-id vol-xxx`',
+      'Delete the volume: `aws ec2 delete-volume --volume-id vol-xxx`',
+      'Use AWS Cost Explorer with the "Unattached EBS Volumes" recommendation to find all such volumes.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-deleting-volume.html',
+    severity: 'medium', quickWin: true,
+  },
+  'cost.ec2_stopped': {
+    cloud: 'aws', title: 'Stopped EC2 Instance',
+    what: 'A stopped EC2 instance is still incurring charges for its attached EBS volumes, Elastic IPs, and data transfer.',
+    why: 'Even stopped, the associated storage and IP resources are billed. If the instance is not needed, these costs add up over time.',
+    fix: [
+      'Determine if the instance is still required — check with the owner tag.',
+      'If no longer needed, terminate: `aws ec2 terminate-instances --instance-ids i-xxx`',
+      'If needed occasionally, consider converting to a spot-interruptible workload or use Lambda/Fargate for on-demand compute.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-lifecycle.html',
+    severity: 'medium', quickWin: true,
+  },
+  'cost.rds_stopped': {
+    cloud: 'aws', title: 'Stopped RDS Instance',
+    what: 'A stopped RDS instance continues to accumulate storage and IOPS charges. AWS will also automatically restart it after 7 days.',
+    why: 'RDS storage bills regardless of state. An unused db.r5.large with 500 GB storage costs ~$100+/month in storage alone.',
+    fix: [
+      'If the database is no longer needed, take a final snapshot and delete the instance.',
+      'For intermittent workloads, consider migrating to Aurora Serverless v2 which can scale to 0 ACUs.',
+      'To delete: `aws rds delete-db-instance --db-instance-identifier xxx --final-db-snapshot-identifier xxx-final`',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_StopInstance.html',
+    severity: 'medium', quickWin: true,
+  },
+  'cost.ec2_on_demand_large': {
+    cloud: 'aws', title: 'Large On-Demand Instance — Consider Reserved Pricing',
+    what: 'A large EC2 instance is running on on-demand pricing. If it runs 24/7, a Reserved Instance or Savings Plan would be significantly cheaper.',
+    why: '1-year no-upfront Reserved Instances save ~30–40%, and 3-year saves up to 60% versus on-demand pricing.',
+    fix: [
+      'Analyse usage in AWS Cost Explorer → "Savings Plans" or "Reserved Instances" recommendations.',
+      'Purchase a Compute Savings Plan if workload varies across instance families.',
+      'Purchase an EC2 Instance Savings Plan for steady-state workloads with predictable instance types.',
+    ],
+    docs: 'https://aws.amazon.com/savingsplans/',
+    severity: 'low',
+  },
+  'cost.lambda_oversized': {
+    cloud: 'aws', title: 'Lambda Function Over-Provisioned Memory',
+    what: 'A Lambda function is allocated very high memory (8 GB+). Unless it processes large objects, this is likely over-provisioned.',
+    why: 'Lambda billing is based on GB-seconds. Halving memory from 8 GB to 4 GB on a function running 1M times/month at 1s each saves ~$84/month.',
+    fix: [
+      'Run AWS Lambda Power Tuning (open-source Step Functions state machine) to find the optimal memory.',
+      'Review CloudWatch metrics for actual memory usage (max memory used vs configured).',
+      'Right-size to the nearest allocation above the p95 memory usage.',
+    ],
+    docs: 'https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html',
+    severity: 'low', quickWin: true,
+  },
+  'cost.ec2_missing_tags': {
+    cloud: 'aws', title: 'EC2 Instance Missing Cost-Allocation Tags',
+    what: 'An EC2 instance is missing tags such as Owner, CostCenter, Environment, or Project that are required for cost attribution.',
+    why: 'Without cost-allocation tags, spend cannot be split by team/project in AWS Cost Explorer, making it impossible to charge back or optimise by business unit.',
+    fix: [
+      'Apply missing tags via Console or: `aws ec2 create-tags --resources i-xxx --tags Key=Owner,Value=team`',
+      'Enforce tagging via AWS Tag Policies or Service Control Policies (SCPs) in AWS Organizations.',
+      'Use AWS Config rule "required-tags" to alert on untagged resources automatically.',
+    ],
+    docs: 'https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html',
+    severity: 'low', quickWin: true,
+  },
+  'cost.s3_missing_tags': {
+    cloud: 'aws', title: 'S3 Bucket Missing Cost-Allocation Tags',
+    what: 'An S3 bucket is missing cost-allocation tags. S3 is often a top-3 AWS cost driver and tagging is critical for accurate attribution.',
+    why: 'Untagged S3 buckets obscure storage costs across teams. Large buckets (100 TB+) can cost $2,000+/month, making attribution essential.',
+    fix: [
+      'Add tags: `aws s3api put-bucket-tagging --bucket BUCKET --tagging TagSet=[{Key=Owner,Value=team}]`',
+      'Enable Cost Allocation Tags in the Billing console to activate them for Cost Explorer.',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/CostAllocTagging.html',
+    severity: 'low', quickWin: true,
+  },
+  'cost.rds_missing_tags': {
+    cloud: 'aws', title: 'RDS Instance Missing Cost-Allocation Tags',
+    what: 'An RDS instance is missing cost-allocation tags needed for billing attribution.',
+    why: 'RDS can be one of the largest AWS cost contributors. Without tags, database costs cannot be attributed to a specific application or team.',
+    fix: [
+      'Add tags: `aws rds add-tags-to-resource --resource-name arn:aws:rds:... --tags Key=Owner,Value=team`',
+    ],
+    docs: 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html',
+    severity: 'low', quickWin: true,
+  },
+
+  // ─── Cost optimisation — GCP ────────────────────────────────────────────
+  'cost.gce_terminated': {
+    cloud: 'gcp', title: 'Terminated GCE Instance with Persistent Disks',
+    what: 'A GCE instance is in TERMINATED state. Its attached persistent disks continue to incur storage charges.',
+    why: 'Persistent disks cost $0.04–$0.17/GB/month regardless of VM state. A 1 TB SSD disk costs ~$170/month with no compute value.',
+    fix: [
+      'Delete the instance and disks: `gcloud compute instances delete INSTANCE --delete-disks=all --zone ZONE`',
+      'Or snapshot disks first: `gcloud compute disks snapshot DISK --snapshot-names SNAPSHOT --zone ZONE`',
+      'Use Committed Use Discounts for instances that run 24/7.',
+    ],
+    docs: 'https://cloud.google.com/compute/docs/instances/deleting-instance',
+    severity: 'medium', quickWin: true,
+  },
+  'cost.gce_missing_labels': {
+    cloud: 'gcp', title: 'GCE Instance Missing Cost Labels',
+    what: 'A GCE instance is missing labels used for cost attribution in GCP Billing Export.',
+    why: 'GCP uses labels (not tags) for cost attribution. Without labels like owner, environment, and cost-center, spend cannot be split in BigQuery billing exports.',
+    fix: [
+      'Add labels: `gcloud compute instances add-labels INSTANCE --labels=owner=team,environment=prod,cost-center=123 --zone ZONE`',
+      'Enforce labelling using GCP Organization Policy constraints/compute.requireOsLogin or custom Terraform/Pulumi policies.',
+    ],
+    docs: 'https://cloud.google.com/resource-manager/docs/creating-managing-labels',
+    severity: 'low', quickWin: true,
+  },
+  'cost.gcs_missing_labels': {
+    cloud: 'gcp', title: 'GCS Bucket Missing Cost Labels',
+    what: 'A Cloud Storage bucket is missing labels needed for cost attribution.',
+    why: 'Storage costs in GCP are attributed via labels in the Billing Export. Without labels, storage costs cannot be allocated to teams or projects.',
+    fix: [
+      'Add labels via Console or: `gsutil label ch -l owner:team -l environment:prod gs://BUCKET`',
+    ],
+    docs: 'https://cloud.google.com/storage/docs/using-bucket-labels',
+    severity: 'low', quickWin: true,
+  },
+
+  // ─── Cost optimisation — Azure ──────────────────────────────────────────
+  'cost.azure_vm_deallocated': {
+    cloud: 'azure', title: 'Deallocated Azure VM Still Incurring Disk Costs',
+    what: 'An Azure VM is in the Deallocated state. While compute charges stop, its managed disk(s) continue to accrue storage costs.',
+    why: 'Managed disk costs range from $4–$20+/month per disk (P10–P30 tiers). A deallocated VM with 3 disks can cost $30–$60/month.',
+    fix: [
+      'Delete the VM and disks via Portal or: `az vm delete --resource-group RG --name VM --yes`',
+      'Capture an image first if the VM may be needed: `az vm capture --resource-group RG --name VM --vhd-name-prefix PREFIX`',
+      'For periodic workloads, use Azure Container Instances (pay-per-second) instead of persistent VMs.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/virtual-machines/states-billing',
+    severity: 'medium', quickWin: true,
+  },
+  'cost.azure_missing_tags': {
+    cloud: 'azure', title: 'Azure Resource Missing Cost-Allocation Tags',
+    what: 'An Azure resource is missing tags required for cost management and attribution.',
+    why: 'Azure Cost Management uses tags for subscription-level breakdowns. Without tags, it is impossible to split costs by team, project, or environment.',
+    fix: [
+      'Add tags via Portal or: `az resource tag --tags Owner=team Environment=prod --ids RESOURCE_ID`',
+      'Enforce tagging via Azure Policy with the "Require a tag on resources" built-in policy.',
+      'Use the "Tag inheritance" policy to propagate tags from resource groups to resources automatically.',
+    ],
+    docs: 'https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/tag-resources',
+    severity: 'low', quickWin: true,
+  },
+}
 export const TOP_RECS_BY_CLOUD = {
   aws: {
     critical: ['sg.ssh_open', 's3.public_access', 'iam.wildcard_action', 'cloudtrail.disabled', 'lambda.hardcoded_secret', 'elasticache.no_auth', 'opensearch.public_endpoint', 'redshift.publicly_accessible'],

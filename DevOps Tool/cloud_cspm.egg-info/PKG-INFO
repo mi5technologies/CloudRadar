@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
 Name: cloud-cspm
 Version: 0.1.0
-Summary: Multi-cloud CSPM - Security scanning, audit, governance, pen testing
+Summary: CloudRadar - Multi-cloud CSPM: Security scanning, audit, governance, pen testing
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: boto3>=1.28.0
@@ -12,16 +12,29 @@ Requires-Dist: uvicorn>=0.22.0
 Requires-Dist: jinja2>=3.1.0
 Requires-Dist: python-multipart>=0.0.9
 
-# Cloud CSPM – DevOps Security Platform
+# CloudRadar – DevOps Security Platform
 
 Multi-cloud Security Posture Management (CSPM) tool for security scanning, audit, governance, change detection, and basic pen testing.
+
+## Quick start
+
+```bash
+# Install
+pip install -e .
+cd frontend && npm install && npm run build
+
+# Run (from project root)
+python -m cspm.cli ui --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000** → choose **AWS**, **GCP**, or **Azure** → complete Setup (or “Setup later”) → use the Dashboard to run scans and reports.
 
 ## Features
 
 - **Multi-cloud**: AWS (primary), Azure, GCP support
 - **Asset catalog**: List all assets for audit (CSV/JSON), diff between snapshots
 - **Change detection**: Compare with previous run; new/removed/modified assets and findings
-- **Security scanning**: S3, IAM, RDS, Lambda, EC2, security groups, **WAF**
+- **Security scanning**: 20+ AWS resource types – EC2, S3, RDS, Lambda, IAM, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS (Clusters + Task Defs), KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch CIS alarms, ECR
 - **Compliance**: CIS and SOC2 mapping with pass/fail report
 - **Governance**: Required tags, resource policy (forbidden instance types, regions)
 - **Pen testing**: Exposed services (0.0.0.0/0 on sensitive ports), secrets scan, exploit scenario mapping
@@ -34,6 +47,8 @@ pip install -r requirements.txt
 # or
 pip install -e .
 ```
+
+**Note:** Run from the project root so `cspm` is importable. If you see `ModuleNotFoundError: No module named 'cspm'`, run `pip install -e .` from the repo root.
 
 ## Web UI (Vue 3 + FastAPI)
 
@@ -66,11 +81,13 @@ Open `http://127.0.0.1:5173`; Vite proxies `/api` to the backend.
 
 ### Setup
 
-In the UI go to **Setup** and enter:
+In the UI go to **Setup** (or complete it right after choosing a cloud):
 
-- AWS Region
-- AWS Access key ID + Secret access key (optional session token)
-- Optionally persist to `config.yaml` (**plain text**; protect this file)
+- **AWS:** Region, Access Key ID, Secret Access Key (optional session token). Optionally save to `config.yaml`.
+- **GCP:** Project ID, optional path to service account JSON. Optionally save to config.
+- **Azure:** Subscription ID, Tenant ID, Client ID, Client secret. Optionally save to config.
+
+You can skip with **Setup later** and configure from the Dashboard later. Credentials are stored in **plain text** in `config.yaml` if you enable “Save to config”—restrict file permissions and do not commit this file.
 
 On Windows you can also run:
 
@@ -94,8 +111,8 @@ On Windows you can also run:
 
 ## Config
 
-- `config.yaml` (optional)
-- Env: `AWS_DEFAULT_REGION`, `CSPM_SNAPSHOTS_DIR`, `CSPM_RULES_DIR`
+- **config.yaml** (optional) – See [Configuration](docs/CONFIGURATION.md) for full structure (AWS, GCP, Azure).
+- **Env** – `AWS_DEFAULT_REGION`, `CSPM_SNAPSHOTS_DIR`, `CSPM_RULES_DIR`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, `AZURE_*`, etc.
 
 ### AWS authentication options
 
@@ -204,6 +221,27 @@ Create an IAM policy like below and attach it to the scanning user/role:
 }
 ```
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | Data flow, components, and extensibility |
+| [Configuration](docs/CONFIGURATION.md) | config.yaml, environment variables, cloud credentials |
+| [Web API](docs/API.md) | REST and SSE endpoints for the UI backend |
+| [Deployment](docs/DEPLOYMENT.md) | Production run, Docker, reverse proxy, security |
+| [Improvements](docs/IMPROVEMENTS.md) | Suggested enhancements and roadmap |
+
+## What else can be updated
+
+See **[docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** for a full list of suggested improvements, including:
+
+- Scheduled scans and dashboard metrics
+- Encrypting credentials and role-based access
+- Full GCP and Azure discovery (beyond stubs)
+- Custom rules from the UI, more compliance frameworks
+- Remediation actions, alerting, and runbooks
+- Health endpoint, metrics, and CI/CD
+
 ## Project layout
 
 - `cspm/` – core package
@@ -222,4 +260,11 @@ Create an IAM policy like below and attach it to the scanning user/role:
   - `ui/` – FastAPI app (JSON API + job progress), serves Vue build
 - `frontend/` – Vue 3 + Vite SPA (sidebar, Security Scan with step-by-step progress)
 - `snapshots/` – stored scan snapshots
-- `scripts/` – run_audit.sh, run_pentest.sh, run_ui.ps1
+- `scripts/` – run_audit.sh, run_pentest.sh, run_ui.ps1, run_ui.sh
+
+## Troubleshooting
+
+- **`ModuleNotFoundError: No module named 'cspm'`** – Run `pip install -e .` from the project root.
+- **Logs / step progress not showing** – The UI uses SSE and a polling fallback; ensure you are not blocking EventSource or the `/api/jobs/{id}` endpoint (e.g. proxy buffering). See [Deployment](docs/DEPLOYMENT.md) for Nginx SSE config.
+- **Frontend not built** – Run `cd frontend && npm run build`. The backend serves the app from `frontend/dist`.
+- **AWS auth failed** – Check credentials and IAM permissions; see [AWS IAM Permissions](#aws-iam-permissions-least-privilege-for-scanning) above.

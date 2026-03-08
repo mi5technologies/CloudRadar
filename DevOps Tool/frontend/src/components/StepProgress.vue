@@ -147,10 +147,10 @@ const quickWins = computed(() =>
 <style scoped>
 .step-progress { margin: 20px 0; }
 .step-progress-title { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: var(--text); }
-.step-progress-waiting { padding: 16px; color: var(--text-muted); font-size: 0.9rem; background: rgba(15,23,42,0.4); border-radius: 8px; margin-bottom: 12px; }
+.step-progress-waiting { padding: 16px; color: var(--text-muted); font-size: 0.9rem; background: var(--bg-el-lo); border-radius: 8px; margin-bottom: 12px; }
 .steps { display: flex; flex-direction: column; gap: 0; }
 .steps-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; }
-.step { display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px; border-radius: 8px; margin-bottom: 2px; background: rgba(15,23,42,0.4); border: 1px solid transparent; transition: background 0.15s, border-color 0.15s; }
+.step { display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px; border-radius: 8px; margin-bottom: 2px; background: var(--bg-el-lo); border: 1px solid transparent; transition: background 0.15s, border-color 0.15s; }
 .step-running { background: rgba(14,165,233,0.08); border-color: rgba(14,165,233,0.25); }
 .step-success { background: rgba(34,197,94,0.06);  border-color: rgba(34,197,94,0.15); }
 .step-failed  { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.25); }

@@ -116,15 +116,30 @@
             <li><strong>Findings per scan</strong> — Bar chart showing total findings per scan over time for the selected cloud.</li>
           </ul>
           <p>Charts are powered by Chart.js and update automatically when the cloud tab is switched.</p>
-          <h3 id="dashboard-recs">Top 5 Recommendations panel</h3>
+          <h3 id="dashboard-recs">Top recommendations panel (findings-aware)</h3>
           <p>
-            Below the charts, the Dashboard shows the top 5 prioritised security recommendations for
-            the selected cloud, pulled from the <code>recommendations.js</code> lookup table.
-            Each card shows the rule title, cloud badge, severity badge, and a one-line "why it matters" summary.
+            The Dashboard shows up to 5 prioritised recommendations for the selected cloud.
+            When scan history contains findings, recommendations are <strong>ranked by actual data</strong> —
+            sorted by severity weight × number of affected resources. A finding type that affects 5 resources
+            ranks higher than one affecting only 1. The label "ranked by your scan data" appears when live
+            findings are used. If no scan history exists, the panel falls back to the static priority table.
+          </p>
+          <h3 id="dashboard-quickwins">Quick Wins panel</h3>
+          <p>
+            Below the top recommendations, a <strong>⚡ Quick Wins</strong> panel highlights medium/low
+            severity findings marked as easy to fix (single console action). These are surfaced separately so
+            you can improve your posture quickly without tackling critical issues first.
+          </p>
+          <h3 id="dashboard-remediation">Remediation Progress panel</h3>
+          <p>
+            When a scan has been run, a progress bar shows what percentage of your findings have been
+            marked as fixed. The score updates immediately as you mark findings on the Findings page.
+            The panel also shows a <strong>risk score</strong> (0–100) that reflects only your remaining
+            unfixed findings — watch it improve as you remediate.
           </p>
           <h3 id="dashboard-kpis">KPI cards</h3>
           <p>
-            Four KPI cards show: total findings, critical + high findings, compliance score, and risk score.
+            Four KPI cards show: last scan time, total findings, risk score, and critical count.
             A "No scans yet" empty state is shown if no scan history exists for the selected cloud.
           </p>
         </section>
@@ -136,7 +151,7 @@
             The Security Scan page performs a comprehensive, service-by-service audit of your cloud environment.
             Every service list is cloud-specific — the correct service names are shown for each cloud.
           </p>
-          <h3 id="scan-aws">AWS services scanned (30)</h3>
+          <h3 id="scan-aws">AWS services scanned (31)</h3>
           <div class="service-grid">
             <span class="svc-chip" v-for="s in awsServices" :key="s">{{ s }}</span>
           </div>
@@ -166,7 +181,8 @@
             <li>Severity pill counts (Critical, High, Medium, Low)</li>
             <li>Overall risk score (0–100)</li>
             <li>Cloud, region/project, and total findings count</li>
-            <li>Top 3 cloud-specific recommendations based on what was found</li>
+            <li><strong>Prioritised actions</strong> — top 3 recommendations ranked by severity × affected resources from this scan (labelled "ranked by your findings" when findings are available)</li>
+            <li><strong>⚡ Quick wins</strong> — up to 3 low-effort, high-impact fixes pulled from the scan's medium/low findings</li>
             <li>Download links for JSON and CSV reports</li>
           </ul>
         </section>
@@ -195,6 +211,22 @@
             <li><strong>Raw JSON</strong> — collapsible raw finding data</li>
             <li><strong>Auto-remediation</strong> — inline remediation script (where available)</li>
           </ul>
+          <h3 id="findings-remediation">Remediation progress tracking</h3>
+          <p>
+            Each finding row has a <strong>Mark fixed</strong> button. Clicking it marks the finding as
+            resolved and turns the row semi-transparent. The <strong>Remediation Progress</strong> bar at
+            the top of the page updates immediately, showing:
+          </p>
+          <ul>
+            <li>Percentage of findings fixed</li>
+            <li>Count of fixed vs. open findings</li>
+            <li>A colour-coded bar (red → amber → green as you make progress)</li>
+          </ul>
+          <p>
+            The same status is reflected on the <strong>Dashboard's Remediation Progress panel</strong>.
+            Fixed status is stored in <code>localStorage</code> and persists across page refreshes.
+            Click a fixed finding's button again to re-open it.
+          </p>
           <h3 id="findings-export">Export CSV</h3>
           <p>Click <strong>Export CSV</strong> to download the currently filtered findings as a CSV file.</p>
         </section>
@@ -452,7 +484,7 @@
           <h2>Recommendations engine</h2>
           <p>
             All per-finding recommendations come from <code>src/utils/recommendations.js</code> — a
-            centralised lookup table with over <strong>80 rules</strong> covering AWS, Google Cloud, and Azure.
+            centralised lookup table with over <strong>90 rules</strong> covering AWS, Google Cloud, Azure, and CloudFront.
             Each rule includes:
           </p>
           <ul>
@@ -473,6 +505,83 @@
             The <code>TOP_RECS_BY_CLOUD</code> export provides prioritised rule keys for the Dashboard
             recommendations panel, organised by cloud and severity tier.
           </p>
+          <h3 id="recs-quickwin">Quick win flag</h3>
+          <p>
+            Rules in the lookup table can be marked <code>quickWin: true</code> to indicate they are fast,
+            single-step fixes. The Dashboard and post-scan summary card surface these separately in the
+            <strong>⚡ Quick Wins</strong> panel. Currently marked as quick wins: CloudFront HTTP allowed,
+            CloudFront security headers, CloudFront HSTS, CloudFront logging, CloudFront TLS version,
+            and CloudFront geo-restriction.
+          </p>
+          <h3 id="recs-prioritisation">Prioritised recommendations</h3>
+          <p>
+            The <code>getPrioritisedRecs()</code> function in <code>remediationStore.js</code> groups
+            unfixed findings by <code>rule_id</code> and sorts them by <strong>severity weight × occurrence count</strong>.
+            A rule affecting 5 resources ranks above a rule affecting 1 resource of the same severity.
+            This ensures the most impactful actions appear at the top of both the Dashboard and post-scan summary.
+          </p>
+        </section>
+
+        <!-- ───── Built-in Tests ───── -->
+        <section id="tests">
+          <h2>Built-in tests</h2>
+          <p>
+            CloudRadar ships with a full built-in test suite you can run directly from the UI — no terminal required.
+            Navigate to <strong>Tests</strong> in the sidebar. Tests validate the application's own logic
+            using synthetic data and mocked AWS APIs, so <strong>no real cloud credentials are needed</strong>.
+            They are completely independent of any running scan.
+          </p>
+          <div class="info-box">
+            <strong>Before going to production:</strong> run all 9 test suites and confirm you see a
+            green "✓ All tests passed" banner. If any test fails, check the terminal output for the exact failure before deploying.
+          </div>
+
+          <h3 id="tests-how">How to run tests</h3>
+          <ol>
+            <li>Click <strong>Tests</strong> in the sidebar (under Audit).</li>
+            <li>All 9 suites are pre-selected. Deselect individual suites if you only want to test a subset.</li>
+            <li>Click <strong>Run Tests</strong>.</li>
+            <li>Watch the live terminal output stream in real time — green ✓ for passed, red ✗ for failed.</li>
+            <li>A summary badge bar shows total passed / failed / errors / skipped counts.</li>
+            <li>A result banner at the bottom confirms the final outcome.</li>
+          </ol>
+
+          <h3 id="tests-suites">Test suites (9 total)</h3>
+          <div class="checks-table">
+            <div class="checks-header"><span>Suite</span><span>What it validates</span><span>Method</span></div>
+            <div class="checks-row" v-for="t in testSuites" :key="t.name">
+              <code>{{ t.name }}</code>
+              <span>{{ t.desc }}</span>
+              <span class="sev-badge medium">{{ t.method }}</span>
+            </div>
+          </div>
+
+          <h3 id="tests-technical">How it works (technical detail)</h3>
+          <p>When you click Run Tests, the frontend sends:</p>
+          <ol>
+            <li><code>POST /api/tests/run</code> with the list of selected test modules → backend returns a <code>job_id</code>.</li>
+            <li>The backend spawns a background thread that runs <code>pytest -v --tb=short</code> as a subprocess.</li>
+            <li>Before running, dummy AWS credentials (<code>AWS_ACCESS_KEY_ID=testing</code> etc.) are injected into the subprocess environment so moto-based tests work without real keys.</li>
+            <li>stdout is streamed line by line and each line is parsed: <code>PASSED</code> / <code>FAILED</code> / <code>ERROR</code> / <code>SKIPPED</code> lines become structured events.</li>
+            <li>Events are pushed via Server-Sent Events (<code>GET /api/tests/&lt;job_id&gt;/events</code>) to the frontend in real time. A polling fallback (<code>GET /api/tests/&lt;job_id&gt;</code> every 1.5s) handles environments where SSE is blocked by a proxy.</li>
+          </ol>
+
+          <h3 id="tests-isolation">Test isolation</h3>
+          <ul>
+            <li>Tests use their own separate job store and SSE queues — they share no state with scan jobs.</li>
+            <li>Running tests while a scan is in progress is safe.</li>
+            <li>Tests that interact with AWS (S3 scanner, Remediation Engine) use <strong>moto</strong> to mock all AWS API calls — nothing touches real infrastructure.</li>
+            <li>API endpoint tests use FastAPI's built-in <code>TestClient</code> (backed by httpx) — no running server needed.</li>
+          </ul>
+
+          <h3 id="tests-new-suite">Adding a new test suite</h3>
+          <ol>
+            <li>Create <code>tests/test_my_feature.py</code> with standard <code>pytest</code> functions.</li>
+            <li>Register it in <code>cspm/ui/test_runner.py</code> under <code>_ALL_TEST_FILES</code>:<br/>
+              <code>"test_my_feature": "My Feature Name"</code>
+            </li>
+            <li>Add its description to the <code>FALLBACK_TESTS</code> array in <code>Tests.vue</code> — it will appear in the UI automatically.</li>
+          </ol>
         </section>
 
         <!-- ───── API / Backend ───── -->
@@ -499,6 +608,21 @@
         <!-- ───── Changelog ───── -->
         <section id="changelog">
           <h2>Changelog</h2>
+          <div class="changelog-entry">
+            <div class="cl-version">v2.4</div>
+            <ul>
+              <li>CloudFront security scanner — 8 new checks: HTTP allowed, no WAF, outdated TLS, missing security headers, HSTS, S3 origin without OAC, logging disabled, geo-restriction</li>
+              <li>8 CloudFront recommendations added to recommendations.js with full what/why/fix/docs</li>
+              <li>3 new test suites: <code>test_cloudfront_scanner</code> (no AWS credentials needed), <code>test_risk_engine</code>, <code>test_api_endpoints</code></li>
+              <li>Total test suites: 6 → 9; registered in test runner UI automatically</li>
+              <li>Prioritised recommendations: Dashboard and post-scan summary now rank recs by severity × number of affected resources from actual scan findings</li>
+              <li>⚡ Quick Wins panel on Dashboard and post-scan summary card — low-effort, high-impact fixes surfaced separately</li>
+              <li>Remediation Progress Tracker: mark any finding as fixed, watch progress bar and risk score update on Findings page and Dashboard</li>
+              <li>remediationStore.js utility: markFixed, unmarkFixed, isFixed, computeRemediationScore, getPrioritisedRecs, getQuickWins — all persisted to localStorage</li>
+              <li>CloudFront added to AWS services list (31 total), checks reference table, and documentation</li>
+              <li>Documentation: new Tests section with full suite reference, how-to, technical detail, and "adding a new suite" guide</li>
+            </ul>
+          </div>
           <div class="changelog-entry">
             <div class="cl-version">v2.3</div>
             <ul>
@@ -565,41 +689,63 @@ onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
 onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
 const toc = [
-  { id: 'overview',             label: 'Overview' },
-  { id: 'getting-started',      label: 'Getting started' },
-  { id: 'cloud-setup',          label: '  Cloud credentials setup', sub: true },
-  { id: 'first-scan',           label: '  First scan', sub: true },
-  { id: 'dashboard',            label: 'Dashboard' },
-  { id: 'dashboard-clouds',     label: '  Multi-cloud tabs', sub: true },
-  { id: 'dashboard-charts',     label: '  Charts', sub: true },
-  { id: 'dashboard-recs',       label: '  Top 5 Recommendations', sub: true },
-  { id: 'security-scan',        label: 'Security Scan' },
-  { id: 'scan-aws',             label: '  AWS services', sub: true },
-  { id: 'scan-gcp',             label: '  Google Cloud services', sub: true },
-  { id: 'scan-azure',           label: '  Azure services', sub: true },
-  { id: 'scan-summary',         label: '  Post-scan summary card', sub: true },
-  { id: 'findings',             label: 'Findings' },
-  { id: 'findings-slideover',   label: '  Slide-over panel', sub: true },
-  { id: 'vulnerabilities',      label: 'Vulnerabilities' },
-  { id: 'pentest',              label: 'Pentest' },
-  { id: 'security-checks',      label: 'Security checks reference' },
-  { id: 'checks-aws',           label: '  AWS checks', sub: true },
-  { id: 'checks-gcp',           label: '  Google Cloud checks', sub: true },
-  { id: 'checks-azure',         label: '  Azure checks', sub: true },
-  { id: 'compliance',           label: 'Compliance & gap analysis' },
-  { id: 'attack-paths',         label: 'Attack Paths' },
-  { id: 'governance',           label: 'Governance' },
-  { id: 'scan-history',         label: 'Scan History' },
-  { id: 'notifications',        label: 'Notifications' },
-  { id: 'scheduled-scans',      label: 'Scheduled Scans' },
-  { id: 'ui-features',          label: 'UI features' },
-  { id: 'command-palette',      label: '  Command palette (Ctrl+K)', sub: true },
-  { id: 'sidebar',              label: '  Sidebar', sub: true },
-  { id: 'toast',                label: '  Toast notifications', sub: true },
-  { id: 'mobile',               label: '  Mobile support', sub: true },
+  { id: 'overview',               label: 'Overview' },
+  { id: 'getting-started',        label: 'Getting started' },
+  { id: 'cloud-setup',            label: '  Cloud credentials setup', sub: true },
+  { id: 'first-scan',             label: '  First scan', sub: true },
+  { id: 'dashboard',              label: 'Dashboard' },
+  { id: 'dashboard-clouds',       label: '  Multi-cloud tabs', sub: true },
+  { id: 'dashboard-charts',       label: '  Charts', sub: true },
+  { id: 'dashboard-recs',         label: '  Top recommendations', sub: true },
+  { id: 'dashboard-quickwins',    label: '  Quick Wins panel', sub: true },
+  { id: 'dashboard-remediation',  label: '  Remediation Progress', sub: true },
+  { id: 'security-scan',          label: 'Security Scan' },
+  { id: 'scan-aws',               label: '  AWS services (31)', sub: true },
+  { id: 'scan-gcp',               label: '  Google Cloud services', sub: true },
+  { id: 'scan-azure',             label: '  Azure services', sub: true },
+  { id: 'scan-summary',           label: '  Post-scan summary card', sub: true },
+  { id: 'findings',               label: 'Findings' },
+  { id: 'findings-slideover',     label: '  Slide-over panel', sub: true },
+  { id: 'findings-remediation',   label: '  Remediation tracking', sub: true },
+  { id: 'vulnerabilities',        label: 'Vulnerabilities' },
+  { id: 'pentest',                label: 'Pentest' },
+  { id: 'security-checks',        label: 'Security checks reference' },
+  { id: 'checks-aws',             label: '  AWS checks (incl. CloudFront)', sub: true },
+  { id: 'checks-gcp',             label: '  Google Cloud checks', sub: true },
+  { id: 'checks-azure',           label: '  Azure checks', sub: true },
+  { id: 'compliance',             label: 'Compliance & gap analysis' },
+  { id: 'attack-paths',           label: 'Attack Paths' },
+  { id: 'governance',             label: 'Governance' },
+  { id: 'scan-history',           label: 'Scan History' },
+  { id: 'notifications',          label: 'Notifications' },
+  { id: 'scheduled-scans',        label: 'Scheduled Scans' },
+  { id: 'tests',                  label: 'Built-in tests' },
+  { id: 'tests-how',              label: '  How to run tests', sub: true },
+  { id: 'tests-suites',           label: '  Test suites (9)', sub: true },
+  { id: 'tests-technical',        label: '  Technical detail', sub: true },
+  { id: 'tests-new-suite',        label: '  Adding a new suite', sub: true },
+  { id: 'ui-features',            label: 'UI features' },
+  { id: 'command-palette',        label: '  Command palette (Ctrl+K)', sub: true },
+  { id: 'sidebar',                label: '  Sidebar', sub: true },
+  { id: 'toast',                  label: '  Toast notifications', sub: true },
+  { id: 'mobile',                 label: '  Mobile support', sub: true },
   { id: 'recommendations-engine', label: 'Recommendations engine' },
-  { id: 'api',                  label: 'Backend API' },
-  { id: 'changelog',            label: 'Changelog' },
+  { id: 'recs-quickwin',          label: '  Quick win flag', sub: true },
+  { id: 'recs-prioritisation',    label: '  Prioritised recommendations', sub: true },
+  { id: 'api',                    label: 'Backend API' },
+  { id: 'changelog',              label: 'Changelog' },
+]
+
+const testSuites = [
+  { name: 'test_rule_engine',        desc: 'Security rule operators (true/false, equals, gt, in, not_in) fire correctly, finding fields are accurate, only non-compliant assets are flagged.', method: 'Unit' },
+  { name: 'test_s3_scanner',         desc: 'S3 bucket scanner: encryption disabled, public-access-block, multiple mixed buckets. Uses moto to mock AWS S3 API calls.', method: 'moto (mock AWS)' },
+  { name: 'test_compliance',         desc: 'All compliance frameworks (CIS, SOC2, HIPAA, PCI DSS, ISO 27001) map findings to controls correctly, detect failures, and produce valid JSON reports.', method: 'Unit' },
+  { name: 'test_remediation',        desc: 'Auto-remediation: S3 encryption dry-run, live apply, idempotent re-apply, public-access-block, missing resource_id, unsupported resource type. Uses moto.', method: 'moto (mock AWS)' },
+  { name: 'test_attack_paths',       desc: 'Attack path graph construction: empty graph returns no paths, future path chain tests as the graph engine grows.', method: 'Unit' },
+  { name: 'test_scanners',           desc: 'Integration tests for rule engine, asset catalog build/filter, risk engine, snapshot manager, change detector, tag policy engine, pentest exposed services, and exploit mapping.', method: 'Unit' },
+  { name: 'test_cloudfront_scanner', desc: 'All 8 CloudFront rules: HTTP allowed, no WAF, outdated TLS, missing security headers, HSTS missing, S3 origin without OAC, logging disabled, no geo-restriction. Edge cases: empty list, perfectly secure dist, multi-dist isolation, required fields.', method: 'Unit (no AWS needed)' },
+  { name: 'test_risk_engine',        desc: 'Risk score computation: per-severity weights, multi-finding accumulation, case-insensitive severity, unknown/missing severity handling, large input sets. risk_summary() report helper output validation.', method: 'Unit' },
+  { name: 'test_api_endpoints',      desc: 'FastAPI routes: /api/health, /api/status, /api/setup (AWS/GCP/Azure input validation), /api/tests/list, /api/tests/run, /api/tests/{job_id} (status polling + 404 for unknown jobs), /api/findings, /api/summary.', method: 'TestClient (httpx)' },
 ]
 
 const awsServices = [
@@ -607,7 +753,7 @@ const awsServices = [
   'WAF', 'CloudTrail', 'VPC', 'EBS Volumes', 'EKS', 'ECS', 'KMS', 'API Gateway',
   'SQS', 'DynamoDB', 'GuardDuty', 'CloudWatch', 'ECR', 'Cognito', 'AWS Config',
   'AWS Backup', 'Redshift', 'ElastiCache', 'OpenSearch', 'Route 53',
-  'Secrets Manager', 'CodeBuild', 'CloudFormation',
+  'Secrets Manager', 'CodeBuild', 'CloudFormation', 'CloudFront',
 ]
 
 const gcpServices = [
@@ -669,6 +815,15 @@ const awsChecks = [
   { id: 'codebuild.no_logging',                 title: 'CodeBuild Project — Logging Disabled',           sev: 'medium' },
   { id: 'codebuild.privileged_mode',            title: 'CodeBuild Project — Privileged Mode Enabled',   sev: 'high' },
   { id: 'cloudformation.no_termination_protection', title: 'CloudFormation — Termination Protection Off', sev: 'medium' },
+  // CloudFront
+  { id: 'cf.http_allowed',               title: 'CloudFront Distribution Allows Plain HTTP',              sev: 'high' },
+  { id: 'cf.no_waf',                     title: 'CloudFront Distribution Has No WAF Web ACL',             sev: 'high' },
+  { id: 'cf.outdated_tls',               title: 'CloudFront Distribution Uses Outdated TLS Protocol',     sev: 'high' },
+  { id: 'cf.s3_origin_no_oac',           title: 'CloudFront S3 Origin Without Origin Access Control',     sev: 'high' },
+  { id: 'cf.missing_security_headers',   title: 'CloudFront Distribution Missing Security Headers',       sev: 'medium' },
+  { id: 'cf.no_hsts',                    title: 'CloudFront HSTS Header Not Configured',                  sev: 'medium' },
+  { id: 'cf.logging_disabled',           title: 'CloudFront Access Logging Disabled',                     sev: 'medium' },
+  { id: 'cf.no_geo_restriction',         title: 'CloudFront Distribution Has No Geo-Restriction',         sev: 'low' },
 ]
 
 const gcpChecks = [
