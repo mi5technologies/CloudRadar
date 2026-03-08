@@ -64,10 +64,19 @@ def scan_serverless(
     region: str = "us-east-1",
     cloud: str = "aws",
 ) -> list[dict[str, Any]]:
-    """Run serverless-focused checks on discovered assets. AWS-only for now."""
+    """Run serverless-focused checks on discovered assets (AWS, GCP, Azure)."""
     findings: list[dict[str, Any]] = []
-    if cloud != "aws":
-        return findings
+    if cloud == "aws":
+        findings = _scan_aws(assets, region)
+    elif cloud == "gcp":
+        findings = _scan_gcp(assets, region)
+    elif cloud == "azure":
+        findings = _scan_azure(assets, region)
+    return findings
+
+
+def _scan_aws(assets: dict[str, list[dict[str, Any]]], region: str) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
 
     # ── Lambda ─────────────────────────────────────────────────────────────
     for fn in assets.get("lambda", []):
@@ -123,8 +132,24 @@ def scan_serverless(
                 "Review VPC subnet routing and add failure destination for async invocations.",
                 region=region, cloud="aws",
             ))
-
-    # ── Step Functions ─────────────────────────────────────────────────────
+        layers = fn.get("layers") or []
+        if layers:
+            findings.append(_finding(
+                "serverless.lambda_layers_review", "lambda", fid, name,
+                "Lambda uses layers: review for updates and vulnerabilities",
+                SEVERITY_LOW,
+                f"Function has {len(layers)} layer(s). Keep layers updated and audit for known vulnerabilities.",
+                "Review layer versions and CVE databases; update or remove unused layers.",
+                region=region, cloud="aws",
+            ))
+        findings.append(_finding(
+            "serverless.lambda_extensions_review", "lambda", fid, name,
+            "Review Lambda extensions for security and observability",
+            SEVERITY_LOW,
+            "Consider using Lambda extensions (as layers) for logging, metrics, and security tooling.",
+            "Add extension layers for observability (e.g. ADOT, Datadog) or security as needed.",
+            region=region, cloud="aws",
+        ))
     try:
         from cspm.utils.aws_helpers import get_client
         sf = get_client("stepfunctions", region)
@@ -256,6 +281,102 @@ def scan_serverless(
                 "If Lambda or other consumers need change data, enable DynamoDB Streams.",
                 "Enable streams on the table if you need event-driven processing.",
                 region=region, cloud="aws",
+            ))
+
+    return findings
+
+
+def _scan_gcp(
+    assets: dict[str, list[dict[str, Any]]],
+    region: str,
+) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    for svc in assets.get("cloud_run", []):
+        sid = svc.get("id") or svc.get("name") or "unknown"
+        sname = svc.get("name") or sid
+        r = svc.get("region") or region
+        if svc.get("public_invoker"):
+            findings.append(_finding(
+                "serverless.cloudrun_public_invoker", "cloud_run", sid, sname,
+                "Cloud Run service allows public (allUsers) invoker",
+                SEVERITY_MEDIUM,
+                "Service can be invoked by unauthenticated users. Restrict invoker IAM to required identities.",
+                "Remove allUsers from Cloud Run Invoker role; use IAM to allow only intended callers.",
+                region=r, cloud="gcp",
+            ))
+        min_inst = svc.get("min_instances")
+        if min_inst is not None and int(min_inst) > 0:
+            findings.append(_finding(
+                "serverless.cloudrun_min_instances_review", "cloud_run", sid, sname,
+                "Cloud Run has minimum instances > 0 (always-on cost)",
+                SEVERITY_LOW,
+                f"min_instance_count is {min_inst}. Consider 0 for dev or low-traffic to reduce cost.",
+                "Set min_instance_count to 0 if acceptable cold starts.",
+                region=r, cloud="gcp",
+            ))
+
+    for fn in assets.get("gcp_cloud_functions", []):
+        fid = fn.get("id") or fn.get("name") or "unknown"
+        fname = fn.get("name") or fid
+        r = fn.get("region") or region
+        if fn.get("public_invoker"):
+            findings.append(_finding(
+                "serverless.gcp_functions_public_invoker", "gcp_cloud_functions", fid, fname,
+                "Cloud Function allows public (allUsers) invoker",
+                SEVERITY_MEDIUM,
+                "Function can be invoked by unauthenticated users. Restrict invoker IAM.",
+                "Remove allUsers from Cloud Functions Invoker role.",
+                region=r, cloud="gcp",
+            ))
+        env = fn.get("environment_variables") or {}
+        if env and not fn.get("has_secret_env"):
+            findings.append(_finding(
+                "serverless.gcp_functions_env_secrets_review", "gcp_cloud_functions", fid, fname,
+                "Cloud Function uses env vars; prefer Secret Manager",
+                SEVERITY_LOW,
+                "Sensitive values in environment variables should use Secret Manager secret environment variables.",
+                "Use secret_environment_variables / Secret Manager for secrets.",
+                region=r, cloud="gcp",
+            ))
+
+    return findings
+
+
+def _scan_azure(
+    assets: dict[str, list[dict[str, Any]]],
+    region: str,
+) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    for app in assets.get("azure_functions", []):
+        aid = app.get("id") or app.get("name") or "unknown"
+        aname = app.get("name") or aid
+        r = app.get("region") or region
+        if (app.get("public_network_access") or "Enabled").lower() == "enabled":
+            findings.append(_finding(
+                "serverless.azure_functions_public_access_review", "azure_functions", aid, aname,
+                "Azure Function App has public network access enabled",
+                SEVERITY_LOW,
+                "Review if public access is required; consider private endpoints for sensitive workloads.",
+                "Set public_network_access to Disabled and use VNet integration if appropriate.",
+                region=r, cloud="azure",
+            ))
+        if not app.get("managed_identity"):
+            findings.append(_finding(
+                "serverless.azure_functions_managed_identity_review", "azure_functions", aid, aname,
+                "Azure Function App: consider using managed identity",
+                SEVERITY_LOW,
+                "Managed identity avoids storing credentials in app settings.",
+                "Enable System-assigned or User-assigned managed identity for Azure resource access.",
+                region=r, cloud="azure",
+            ))
+        if app.get("secret_like_settings"):
+            findings.append(_finding(
+                "serverless.azure_functions_app_settings_secrets", "azure_functions", aid, aname,
+                "Function App may store secrets in app settings",
+                SEVERITY_MEDIUM,
+                "App settings contain secret-like keys. Prefer Key Vault references.",
+                "Use Key Vault references (e.g. @Microsoft.KeyVault(SecretUri=...)) in app settings.",
+                region=r, cloud="azure",
             ))
 
     return findings

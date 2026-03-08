@@ -88,10 +88,10 @@ This document lists concrete improvements that can be made to CloudRadar, groupe
 
 ## Documentation and onboarding
 
-- **Runbooks** – Short runbooks for “first scan”, “fix critical findings”, “add new rule”.
-- **Video or guided tour** – Short walkthrough of Setup → Scan → Reports.
-- **API OpenAPI/Swagger** – Serve `/docs` (FastAPI default) in development and optionally in production behind auth.
-- **Changelog** – Keep a CHANGELOG.md for releases and breaking changes.
+- ✅ **Runbooks** – Short runbooks for “first scan”, “fix critical findings”, “add new rule”. See [RUNBOOKS.md](RUNBOOKS.md).
+- ✅ **Video or guided tour** – Walkthrough of Setup → Scan → Reports documented in [RUNBOOKS.md](RUNBOOKS.md#guided-tour-setup--scan--reports).
+- ✅ **API OpenAPI/Swagger** – FastAPI serves interactive docs at `GET /docs` (Swagger UI) when the backend is running; see [API.md](API.md).
+- ✅ **Changelog** – [CHANGELOG.md](../CHANGELOG.md) for releases and notable changes.
 
 ## Testing and quality
 

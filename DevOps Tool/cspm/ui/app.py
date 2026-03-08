@@ -493,16 +493,26 @@ async def api_cost(request: Request) -> dict[str, Any]:
 
 # ---------- Serverless Security ----------
 
-_SERVERLESS_TYPES = ["lambda", "stepfunctions", "api_gateway", "sqs", "dynamodb"]
+_SERVERLESS_TYPES_AWS = ["lambda", "stepfunctions", "api_gateway", "sqs", "dynamodb"]
+_SERVERLESS_TYPES_GCP = ["cloud_run", "gcp_cloud_functions"]
+_SERVERLESS_TYPES_AZURE = ["azure_functions"]
+
+
+def _serverless_types_for_cloud(cloud: str) -> list[str]:
+    if cloud == "gcp":
+        return _SERVERLESS_TYPES_GCP
+    if cloud == "azure":
+        return _SERVERLESS_TYPES_AZURE
+    return _SERVERLESS_TYPES_AWS
 
 
 @app.post("/api/serverless-scan")
 async def api_serverless_scan(request: Request) -> dict[str, Any]:
-    """Run serverless-focused security checks (Lambda, Step Functions, API Gateway, SQS, DynamoDB).
+    """Run serverless-focused security checks (AWS, GCP, Azure).
 
     POST body (all optional):
         cloud   "aws" | "gcp" | "azure"  (default: "aws")
-        region  AWS region               (default: us-east-1)
+        region  region                   (default from config)
         skip_rules  List of rule IDs to exclude
     """
     body = await request.json() or {}
@@ -510,18 +520,24 @@ async def api_serverless_scan(request: Request) -> dict[str, Any]:
     if cloud not in ("aws", "gcp", "azure"):
         cloud = "aws"
     region = (body.get("region") or "").strip() or (app_state.aws.region or "us-east-1")
+    if cloud == "gcp":
+        region = (body.get("region") or "").strip() or "us-central1"
+    if cloud == "azure":
+        region = (body.get("region") or "").strip() or "eastus"
     skip_rules: list[str] = body.get("skip_rules") or []
 
+    serverless_types = _serverless_types_for_cloud(cloud)
     last = jobs_module.get_last_scan_result()
     assets: dict[str, Any] = {}
     if last and last.get("cloud") == cloud:
         assets = last.get("assets", {}) or {}
         if last.get("region") and last.get("region") != region:
             assets = {}
-    if not assets or not any(assets.get(t) for t in _SERVERLESS_TYPES):
+    if not assets or not any(assets.get(t) for t in serverless_types):
+        app_state.apply_env()
         cfg = Config()
         ctrl = ScanController(cfg)
-        scan = ctrl.run_scan(cloud=cloud, region=region, only=_SERVERLESS_TYPES)
+        scan = ctrl.run_scan(cloud=cloud, region=region, only=serverless_types)
         if scan.get("error"):
             return JSONResponse(status_code=400, content={"error": scan.get("error")})
         assets = scan.get("assets", {}) or {}

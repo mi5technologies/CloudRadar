@@ -48,10 +48,12 @@ def _enrich_lambda_config(lam, asset: dict[str, Any]) -> None:
         asset["reserved_concurrent_executions"] = cfg.get("ReservedConcurrentExecutions")
         vpc = cfg.get("VpcConfig") or {}
         asset["vpc_config"] = vpc if vpc.get("VpcId") else None
+        asset["layers"] = [lay.get("Arn") for lay in (cfg.get("Layers") or []) if lay.get("Arn")]
     except Exception:
         asset["dead_letter_config"] = None
         asset["reserved_concurrent_executions"] = None
         asset["vpc_config"] = None
+        asset["layers"] = []
 
     try:
         resp = lam.get_function_event_invoke_config(FunctionName=fn_name, Qualifier="$LATEST")

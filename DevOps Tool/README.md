@@ -215,11 +215,14 @@ Create an IAM policy like below and attach it to the scanning user/role:
 |----------|-------------|
 | [Architecture](docs/ARCHITECTURE.md) | Data flow, components, and extensibility |
 | [Configuration](docs/CONFIGURATION.md) | config.yaml, environment variables, cloud credentials |
+| [Setup](docs/SETUP.md) | Local and server setup, commands, cloud permission JSON (AWS, GCP, Azure) |
 | [Multi-Account Setup](docs/MULTI_ACCOUNT_SETUP.md) | Multi-cloud and per-cloud multi-account (AWS, GCP, Azure), IAM/RBAC |
 | [AI Scans](docs/AI_SCANS.md) | AI Usage Security scan (Bedrock, SageMaker, Vertex, Azure OpenAI), rule IDs, OWASP/NIST mapping |
+| [Runbooks](docs/RUNBOOKS.md) | First scan, fix critical findings, add new rule, guided tour |
 | [IAM policy JSON files](docs/iam-policies/) | Ready-to-use AWS IAM, GCP roles, and Azure RBAC JSON for multi-account |
-| [Web API](docs/API.md) | REST and SSE endpoints for the UI backend |
+| [Web API](docs/API.md) | REST and SSE endpoints; OpenAPI at `/docs` |
 | [Deployment](docs/DEPLOYMENT.md) | Production run, Docker, reverse proxy, security |
+| [Changelog](CHANGELOG.md) | Releases and notable changes |
 | [Improvements](docs/IMPROVEMENTS.md) | Suggested enhancements and roadmap |
 
 ## What else can be updated

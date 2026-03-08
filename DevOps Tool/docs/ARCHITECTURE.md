@@ -6,7 +6,7 @@ This document describes the high-level architecture, data flow, and main compone
 
 CloudRadar is a multi-cloud security platform that:
 
-1. **Discovers** cloud resources (EC2, S3, RDS, Lambda, IAM, VPC, EBS, EKS, ECS, CloudTrail, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch, WAF, ALB, and more) via provider APIs.
+1. **Discovers** cloud resources (EC2, S3, RDS, Lambda, IAM, VPC, EBS, EKS, ECS, CloudTrail, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch, WAF, ALB, Step Functions; GCP: GCS, GCE, Firewalls, IAM, Cloud Run, Cloud Functions; Azure: VMs, Storage, NSGs, Function Apps) via provider APIs.
 2. **Scans** them against configurable rules to produce security findings.
 3. **Tracks** changes over time via snapshots and diff reports.
 4. **Reports** on compliance (CIS, SOC2), governance (tags, policies), and basic pentest (exposed services, secrets, exploit mapping).
@@ -50,9 +50,9 @@ CloudRadar is a multi-cloud security platform that:
 
 ### Providers (`cspm/providers/`)
 
-- **AWS** – Full discovery for 20+ resource types (EC2, S3, RDS, Lambda, IAM Users/Roles, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS Clusters/Task Defs, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch alarms) with optional progress callbacks. Supports **multi-account** via Organizations and role-assumption template (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
-- **GCP** – Stub: authentication and project ID; discovery returns empty (extensible). Multi-project via organization/folder ID (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
-- **Azure** – Stub: service principal auth; discovery returns empty (extensible). Multi-subscription via management group or subscription list (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
+- **AWS** – Full discovery for 20+ resource types (EC2, S3, RDS, Lambda, IAM Users/Roles, Security Groups, ALBs, WAF, CloudTrail, VPC, EBS, EKS, ECS Clusters/Task Defs, KMS, API Gateway, SQS, DynamoDB, GuardDuty, CloudWatch alarms, Step Functions) with optional progress callbacks. Supports **multi-account** via Organizations and role-assumption template (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
+- **GCP** – Discovery for GCS, GCE, Firewalls, IAM bindings, **Cloud Run**, and **Cloud Functions (Gen2)**. Multi-project via organization/folder ID (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
+- **Azure** – Discovery for VMs, Storage Accounts, NSGs, and **Azure Function Apps**. Multi-subscription via management group or subscription list (see [Multi-Account Setup](MULTI_ACCOUNT_SETUP.md)).
 
 ### Discovery (`cspm/discovery/`)
 

@@ -4,6 +4,8 @@ The CloudRadar Web UI is backed by a FastAPI application. All API routes are und
 
 **Base URL:** `http://<host>:8000/api` (or same origin when the Vue app is served from the same server).
 
+**Interactive API docs (OpenAPI/Swagger):** When the backend is running, open **http://&lt;host&gt;:8000/docs** for Swagger UI. Use this in development or in production (optionally behind authentication) to explore and test endpoints.
+
 ---
 
 ## Health and status
@@ -210,5 +212,7 @@ These run the operation in the request and return the result directly. Suitable 
 | POST | `/api/compliance` | `{ "framework": "cis", "output": "json" }` | Compliance report |
 | POST | `/api/governance` | `{ "output": "json" }` | Governance report |
 | POST | `/api/pentest` | `{ "repo_path": null }` | Pentest (exposed, secrets, exploit map) |
+| POST | `/api/serverless-scan` | `{ "cloud": "aws", "region": "us-east-1", "skip_rules": [] }` | Serverless security (Lambda, Step Functions, API GW, SQS, DynamoDB; GCP: Cloud Run, Cloud Functions; Azure: Function Apps) |
+| POST | `/api/usage-scan` | `{ "cloud": "aws", "days_lookback": 14, "skip_rules": [] }` | Usage findings (AWS Lambda idle, errors, throttles from CloudWatch) |
 
 All POST bodies are optional; defaults are as shown. Errors return `400` with `{ "error": "..." }`.

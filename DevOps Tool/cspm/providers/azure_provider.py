@@ -113,7 +113,7 @@ class AzureProvider(BaseProvider):
             if on_progress:
                 on_progress(step, status, detail)
 
-        all_types = {"azure_vm", "azure_storage", "azure_nsg"}
+        all_types = {"azure_vm", "azure_storage", "azure_nsg", "azure_functions"}
         types = set(asset_types) if asset_types else all_types
         result: dict[str, list[dict[str, Any]]] = {}
 
@@ -134,6 +134,11 @@ class AzureProvider(BaseProvider):
             report("Discovering Azure NSGs", "running")
             result["azure_nsg"] = self._discover_nsgs(credential, sub)
             report("Discovering Azure NSGs", "success")
+
+        if "azure_functions" in types:
+            report("Discovering Azure Function Apps", "running")
+            result["azure_functions"] = self._discover_azure_functions(credential, sub)
+            report("Discovering Azure Function Apps", "success")
 
         return result
 
@@ -244,6 +249,44 @@ class AzureProvider(BaseProvider):
                     "type": "azure_nsg",
                     "region": nsg.location or "unknown",
                     "has_open_inbound": has_open_inbound,
+                })
+            return result
+        except Exception:
+            return []
+
+    def _discover_azure_functions(self, credential, subscription_id: str) -> list[dict[str, Any]]:
+        try:
+            from azure.mgmt.web import WebSiteManagementClient
+            client = WebSiteManagementClient(credential, subscription_id)
+            result = []
+            for app in client.web_apps.list():
+                kind = (app.kind or "").lower()
+                if "function" not in kind:
+                    continue
+                public_access = getattr(app, "public_network_access", "Enabled") or "Enabled"
+                identity = getattr(app, "identity", None)
+                managed_identity = identity and getattr(identity, "type", None) and "SystemAssigned" in str(identity.type)
+                site_config = getattr(app, "site_config", None)
+                app_settings = getattr(site_config, "app_settings", None) if site_config else None
+                keys = []
+                if isinstance(app_settings, list):
+                    keys = [getattr(s, "name", s.get("name", "") or "").lower() for s in app_settings]
+                elif isinstance(app_settings, dict):
+                    keys = [k.lower() for k in app_settings]
+                secret_like = any(
+                    k for k in keys
+                    if "secret" in k or "key" in k or "password" in k or "connection" in k
+                )
+                result.append({
+                    "id": app.id or app.name,
+                    "name": app.name,
+                    "type": "azure_functions",
+                    "region": app.location or "unknown",
+                    "subscription_id": subscription_id,
+                    "public_network_access": public_access,
+                    "managed_identity": bool(managed_identity),
+                    "app_settings_keys": keys,
+                    "secret_like_settings": secret_like,
                 })
             return result
         except Exception:

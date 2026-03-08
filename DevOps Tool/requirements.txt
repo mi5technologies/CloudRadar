@@ -20,7 +20,10 @@ python-multipart>=0.0.9
 detect-secrets>=1.4.0
 pytest>=7.0.0
 
-# Enhanced features
+# Optional: GCP serverless (Cloud Run, Cloud Functions) and Azure Function Apps for Serverless & Usage scan
+google-cloud-run>=0.10.0
+google-cloud-functions>=0.4.0
+azure-mgmt-web>=7.0.0
 apscheduler>=3.10.0
 python-json-logger>=2.0.0
 moto[s3,ec2,iam,sqs,dynamodb,kms,guardduty,cloudtrail,ecs,eks]>=5.0.0

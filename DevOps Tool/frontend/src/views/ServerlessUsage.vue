@@ -25,6 +25,84 @@
       </button>
     </div>
 
+    <!-- Configure checks: show checks for the active tab so user can select what to run -->
+    <div class="card checks-card" v-if="!loadingServerless && !loadingUsage">
+      <div class="checks-header" @click="checksOpen = !checksOpen">
+        <div class="checks-header-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+          </svg>
+          <span class="checks-title">Configure checks</span>
+          <span class="checks-summary-badge">{{ enabledCount }} / {{ allChecksForTab.length }} enabled</span>
+        </div>
+        <div class="checks-header-right">
+          <button class="checks-select-btn" @click.stop="selectAllChecks(true)">Select all</button>
+          <button class="checks-select-btn" @click.stop="selectAllChecks(false)">Deselect all</button>
+          <svg class="checks-arrow" :class="{ open: checksOpen }" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+      <transition name="panel-slide">
+        <div v-if="checksOpen" class="checks-body">
+          <p class="checks-hint muted">Deselect any check you want to skip when running the {{ activeTab === 'serverless' ? 'serverless' : 'usage' }} scan. Your selection is remembered.</p>
+          <!-- Serverless: by category -->
+          <template v-if="activeTab === 'serverless'">
+            <div v-for="cat in serverlessCategoriesForCloud" :key="cat.id" class="check-cat-block">
+              <div class="check-cat-header">
+                <label class="check-cat-toggle">
+                  <input type="checkbox"
+                    :checked="isCatAllSelected(cat.id)"
+                    :indeterminate.prop="isCatIndeterminate(cat.id)"
+                    @change="toggleCategory(cat.id, $event.target.checked)"
+                  />
+                  <span class="cat-dot" :style="{ background: cat.color }"></span>
+                  <span class="check-cat-label">{{ cat.label }}</span>
+                  <span class="check-cat-count muted">{{ checksForCategoryInCloud(cat.id).length }} check{{ checksForCategoryInCloud(cat.id).length !== 1 ? 's' : '' }}</span>
+                </label>
+              </div>
+              <div class="check-grid">
+                <label v-for="chk in checksForCategoryInCloud(cat.id)" :key="chk.rule_id" class="check-item"
+                  :class="{ 'check-item-disabled': !enabledServerlessRules.has(chk.rule_id) }">
+                  <input type="checkbox"
+                    :checked="enabledServerlessRules.has(chk.rule_id)"
+                    @change="toggleServerlessRule(chk.rule_id, $event.target.checked)"
+                  />
+                  <div class="check-item-body">
+                    <div class="check-item-top">
+                      <span class="check-item-name">{{ chk.title }}</span>
+                      <span class="sev-badge" :class="'sev-' + chk.severity">{{ chk.severity }}</span>
+                    </div>
+                    <div class="check-item-desc muted">{{ chk.desc }}</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </template>
+          <!-- Usage: flat list (AWS only) -->
+          <template v-else>
+            <p v-if="!usageChecksForCloud.length" class="checks-hint muted">Usage scan is currently available for AWS only (Lambda and CloudWatch metrics). Switch to AWS to run it.</p>
+            <div v-else class="check-grid usage-checks">
+              <label v-for="chk in usageChecksForCloud" :key="chk.rule_id" class="check-item"
+                :class="{ 'check-item-disabled': !enabledUsageRules.has(chk.rule_id) }">
+                <input type="checkbox"
+                  :checked="enabledUsageRules.has(chk.rule_id)"
+                  @change="toggleUsageRule(chk.rule_id, $event.target.checked)"
+                />
+                <div class="check-item-body">
+                  <div class="check-item-top">
+                    <span class="check-item-name">{{ chk.title }}</span>
+                    <span class="sev-badge" :class="'sev-' + chk.severity">{{ chk.severity }}</span>
+                  </div>
+                  <div class="check-item-desc muted">{{ chk.desc }}</div>
+                </div>
+              </label>
+            </div>
+          </template>
+        </div>
+      </transition>
+    </div>
+
     <!-- Serverless tab -->
     <div v-show="activeTab === 'serverless'" class="tab-panel">
       <div class="panel-actions">
@@ -40,10 +118,7 @@
         <p style="color: var(--error); margin:0">{{ errorServerless }}</p>
       </div>
       <div v-else-if="!hasServerlessData && !loadingServerless" class="card no-scan-card">
-        <p>Run the serverless scan to check Lambda, Step Functions, API Gateway, SQS, and DynamoDB for DLQ, logging, usage plans, and more.</p>
-        <button class="btn btn-primary" style="margin-top:12px" @click="runServerlessScan" :disabled="loadingServerless">
-          Run serverless scan
-        </button>
+        <p>{{ serverlessEmptyMessage }}</p>
       </div>
       <template v-else-if="hasServerlessData">
         <div class="kpi-grid">
@@ -117,7 +192,8 @@
     <!-- Usage tab -->
     <div v-show="activeTab === 'usage'" class="tab-panel">
       <div class="panel-actions">
-        <button class="btn btn-primary" @click="runUsageScan" :disabled="loadingUsage">
+        <button class="btn btn-primary" @click="runUsageScan" :disabled="loadingUsage || !usageScanAvailable"
+          :title="usageScanAvailable ? '' : 'Usage scan is available for AWS only'">
           <span v-if="!loadingUsage">Run usage scan</span>
           <span v-else>Scanning…</span>
         </button>
@@ -137,10 +213,7 @@
         <p style="color: var(--error); margin:0">{{ errorUsage }}</p>
       </div>
       <div v-else-if="!hasUsageData && !loadingUsage" class="card no-scan-card">
-        <p>Run the usage scan to detect idle Lambdas, high error rates, and throttles from CloudWatch metrics.</p>
-        <button class="btn btn-primary" style="margin-top:12px" @click="runUsageScan" :disabled="loadingUsage">
-          Run usage scan
-        </button>
+        <p>{{ usageEmptyMessage }}</p>
       </div>
       <template v-else-if="hasUsageData">
         <div class="kpi-grid">
@@ -210,7 +283,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const CLOUDS = [
   { id: 'aws', label: 'AWS',
@@ -219,6 +292,53 @@ const CLOUDS = [
     svg: `<svg width="22" height="22" viewBox="0 0 48 48"><path fill="#4285F4" d="M30.2 17.8H24v4.2h6.9c-.7 3.7-4 6.5-7.9 6.5-4.5 0-8.2-3.7-8.2-8.2s3.7-8.2 8.2-8.2c2.1 0 4 .8 5.5 2.1l3-3C29 8.6 26.7 7.5 24 7.5c-7.5 0-13.5 6-13.5 13.5S16.5 34.5 24 34.5c7.2 0 12.8-5 12.8-13.5 0-.8-.1-1.5-.2-2.2l-6.4-1z"/></svg>` },
   { id: 'azure', label: 'Azure',
     svg: `<svg width="22" height="22" viewBox="0 0 48 48"><path fill="#0078D4" d="M27 4L13 28l9 5-7 7h16l7-36z"/><path fill="#50E6FF" d="M27 4L4 34l9-1 7-7-3-5z"/></svg>` },
+]
+
+const SERVERLESS_CATEGORIES = [
+  { id: 'lambda', label: 'Lambda', color: '#FF9900' },
+  { id: 'stepfunctions', label: 'Step Functions', color: '#DD344C' },
+  { id: 'api_gateway', label: 'API Gateway', color: '#FF4F8B' },
+  { id: 'sqs', label: 'SQS', color: '#FF4F8B' },
+  { id: 'dynamodb', label: 'DynamoDB', color: '#4053D6' },
+  { id: 'cloud_run', label: 'Cloud Run', color: '#4285F4' },
+  { id: 'gcp_cloud_functions', label: 'GCP Cloud Functions', color: '#4285F4' },
+  { id: 'azure_functions', label: 'Azure Functions', color: '#0078D4' },
+]
+
+const CATEGORIES_BY_CLOUD = {
+  aws: ['lambda', 'stepfunctions', 'api_gateway', 'sqs', 'dynamodb'],
+  gcp: ['cloud_run', 'gcp_cloud_functions'],
+  azure: ['azure_functions'],
+}
+
+const SERVERLESS_CHECKS = [
+  { rule_id: 'serverless.lambda_no_dlq', category: 'lambda', severity: 'medium', title: 'Lambda has no failure destination (DLQ or OnFailure)', desc: 'Failed async invocations may be lost. Configure DeadLetterConfig or Event Invoke OnFailure.' },
+  { rule_id: 'serverless.lambda_timeout_high', category: 'lambda', severity: 'low', title: 'Lambda timeout exceeds 5 minutes', desc: 'Long timeouts can mask hanging code and increase cost.' },
+  { rule_id: 'serverless.lambda_env_secrets', category: 'lambda', severity: 'high', title: 'Lambda environment may contain secrets', desc: 'Use Secrets Manager or Parameter Store instead of env vars.' },
+  { rule_id: 'serverless.lambda_reserved_concurrency_zero', category: 'lambda', severity: 'medium', title: 'Lambda reserved concurrency is 0', desc: 'All invocations are throttled; often unintentional.' },
+  { rule_id: 'serverless.lambda_vpc_review', category: 'lambda', severity: 'low', title: 'Lambda in VPC: verify NAT/egress and failure handling', desc: 'VPC Lambdas need NAT or VPC endpoints; ensure DLQ for async.' },
+  { rule_id: 'serverless.lambda_layers_review', category: 'lambda', severity: 'low', title: 'Lambda uses layers: review for updates and vulnerabilities', desc: 'Keep layers updated and audit for known vulnerabilities.' },
+  { rule_id: 'serverless.lambda_extensions_review', category: 'lambda', severity: 'low', title: 'Review Lambda extensions for security and observability', desc: 'Consider extension layers for logging, metrics, and security.' },
+  { rule_id: 'serverless.stepfunctions_no_logging', category: 'stepfunctions', severity: 'medium', title: 'Step Functions state machine has logging disabled', desc: 'Enable logging for execution history and debugging.' },
+  { rule_id: 'serverless.stepfunctions_no_xray', category: 'stepfunctions', severity: 'low', title: 'Step Functions X-Ray tracing is disabled', desc: 'X-Ray helps diagnose failures and latency.' },
+  { rule_id: 'serverless.apigw_no_usage_plan', category: 'api_gateway', severity: 'low', title: 'API Gateway has no usage plan (throttling/quota)', desc: 'Create a usage plan for rate limiting.' },
+  { rule_id: 'serverless.apigw_logging_review', category: 'api_gateway', severity: 'low', title: 'API Gateway access logging not enabled', desc: 'Enable access logging for audit and debugging.' },
+  { rule_id: 'serverless.sqs_no_dlq', category: 'sqs', severity: 'low', title: 'SQS queue has no dead-letter queue', desc: 'Use RedrivePolicy with deadLetterTargetArn and maxReceiveCount.' },
+  { rule_id: 'serverless.sqs_visibility_short', category: 'sqs', severity: 'low', title: 'SQS visibility timeout may be too short for Lambda', desc: 'Set to at least 6× Lambda timeout to avoid duplicate processing.' },
+  { rule_id: 'serverless.dynamodb_streams_review', category: 'dynamodb', severity: 'low', title: 'DynamoDB table has no streams (if used by Lambda)', desc: 'Enable streams if you need event-driven processing.' },
+  { rule_id: 'serverless.cloudrun_public_invoker', category: 'cloud_run', severity: 'medium', title: 'Cloud Run allows public (allUsers) invoker', desc: 'Restrict invoker IAM to required identities.' },
+  { rule_id: 'serverless.cloudrun_min_instances_review', category: 'cloud_run', severity: 'low', title: 'Cloud Run min instances > 0 (always-on cost)', desc: 'Consider 0 for dev or low-traffic to reduce cost.' },
+  { rule_id: 'serverless.gcp_functions_public_invoker', category: 'gcp_cloud_functions', severity: 'medium', title: 'Cloud Function allows public (allUsers) invoker', desc: 'Remove allUsers from Cloud Functions Invoker role.' },
+  { rule_id: 'serverless.gcp_functions_env_secrets_review', category: 'gcp_cloud_functions', severity: 'low', title: 'Cloud Function env vars; prefer Secret Manager', desc: 'Use secret_environment_variables / Secret Manager for secrets.' },
+  { rule_id: 'serverless.azure_functions_public_access_review', category: 'azure_functions', severity: 'low', title: 'Azure Function App has public network access enabled', desc: 'Consider private endpoints for sensitive workloads.' },
+  { rule_id: 'serverless.azure_functions_managed_identity_review', category: 'azure_functions', severity: 'low', title: 'Azure Function: consider using managed identity', desc: 'Managed identity avoids storing credentials in app settings.' },
+  { rule_id: 'serverless.azure_functions_app_settings_secrets', category: 'azure_functions', severity: 'medium', title: 'Function App may store secrets in app settings', desc: 'Prefer Key Vault references in app settings.' },
+]
+
+const USAGE_CHECKS = [
+  { rule_id: 'usage.lambda_idle', severity: 'low', title: 'Lambda has no invocations in the period', desc: 'Function appears unused; consider removing or verifying triggers.' },
+  { rule_id: 'usage.lambda_errors_high', severity: 'medium', title: 'Lambda error rate is high (≥5%)', desc: 'Check CloudWatch Logs and fix code or add DLQ for async.' },
+  { rule_id: 'usage.lambda_throttles', severity: 'low', title: 'Lambda has throttled invocations', desc: 'Increase reserved concurrency or optimize duration/memory.' },
 ]
 
 const selectedCloud = ref('aws')
@@ -234,25 +354,175 @@ const usageSummary = ref({})
 const selectedServerless = ref(null)
 const selectedUsage = ref(null)
 const daysLookback = ref(14)
+const checksOpen = ref(true)
+
+const enabledServerlessRules = ref(new Set(SERVERLESS_CHECKS.map(c => c.rule_id)))
+const enabledUsageRules = ref(new Set(USAGE_CHECKS.map(c => c.rule_id)))
+
+const serverlessCategoriesForCloud = computed(() => {
+  const ids = CATEGORIES_BY_CLOUD[selectedCloud.value]
+  if (!ids) return []
+  return SERVERLESS_CATEGORIES.filter(cat => ids.includes(cat.id))
+})
+
+const serverlessChecksForCloud = computed(() => {
+  const ids = CATEGORIES_BY_CLOUD[selectedCloud.value]
+  if (!ids) return []
+  return SERVERLESS_CHECKS.filter(c => ids.includes(c.category))
+})
+
+const usageChecksForCloud = computed(() => {
+  return selectedCloud.value === 'aws' ? USAGE_CHECKS : []
+})
+
+const allChecksForTab = computed(() => activeTab.value === 'serverless' ? serverlessChecksForCloud.value : usageChecksForCloud.value)
+const enabledCount = computed(() => {
+  if (activeTab.value === 'serverless') {
+    return serverlessChecksForCloud.value.filter(c => enabledServerlessRules.value.has(c.rule_id)).length
+  }
+  return usageChecksForCloud.value.filter(c => enabledUsageRules.value.has(c.rule_id)).length
+})
 
 const hasServerlessData = computed(() => serverlessSummary.value.total_findings !== undefined)
 const hasUsageData = computed(() => usageSummary.value.total_findings !== undefined)
 
+const serverlessEmptyMessage = computed(() => {
+  const cloud = selectedCloud.value
+  if (cloud === 'gcp') return 'Run the serverless scan to check Cloud Run and GCP Cloud Functions for public invoker, min instances, env/secrets, and more.'
+  if (cloud === 'azure') return 'Run the serverless scan to check Azure Function Apps for public access, managed identity, and app settings secrets.'
+  return 'Run the serverless scan to check Lambda, Step Functions, API Gateway, SQS, and DynamoDB for DLQ, logging, usage plans, and more.'
+})
+
+const usageEmptyMessage = computed(() => {
+  if (selectedCloud.value === 'aws') {
+    return 'Run the usage scan to detect idle Lambdas, high error rates, and throttles from CloudWatch metrics.'
+  }
+  return 'Usage scan is currently available for AWS only (Lambda and CloudWatch metrics). Switch to AWS to run it.'
+})
+
+const usageScanAvailable = computed(() => selectedCloud.value === 'aws')
+
+function loadServerlessEnabled() {
+  try {
+    const raw = localStorage.getItem('cspm_serverless_checks_enabled')
+    const allIds = new Set(SERVERLESS_CHECKS.map(c => c.rule_id))
+    if (raw) {
+      const arr = JSON.parse(raw)
+      const saved = new Set(arr)
+      const merged = new Set(saved)
+      allIds.forEach(id => { if (!saved.has(id)) merged.add(id) })
+      enabledServerlessRules.value = merged
+    } else {
+      enabledServerlessRules.value = allIds
+    }
+  } catch (_) {
+    enabledServerlessRules.value = new Set(SERVERLESS_CHECKS.map(c => c.rule_id))
+  }
+}
+
+function saveServerlessEnabled() {
+  try {
+    localStorage.setItem('cspm_serverless_checks_enabled', JSON.stringify([...enabledServerlessRules.value]))
+  } catch (_) {}
+}
+
+function loadUsageEnabled() {
+  try {
+    const raw = localStorage.getItem('cspm_usage_checks_enabled')
+    if (raw) {
+      const arr = JSON.parse(raw)
+      enabledUsageRules.value = new Set(arr)
+    }
+  } catch (_) {}
+}
+
+function saveUsageEnabled() {
+  try {
+    localStorage.setItem('cspm_usage_checks_enabled', JSON.stringify([...enabledUsageRules.value]))
+  } catch (_) {}
+}
+
+function checksForCategory(catId) {
+  return SERVERLESS_CHECKS.filter(c => c.category === catId)
+}
+
+function checksForCategoryInCloud(catId) {
+  const ids = CATEGORIES_BY_CLOUD[selectedCloud.value]
+  if (!ids || !ids.includes(catId)) return []
+  return SERVERLESS_CHECKS.filter(c => c.category === catId)
+}
+
+function isCatAllSelected(catId) {
+  const rules = checksForCategoryInCloud(catId).map(c => c.rule_id)
+  return rules.length > 0 && rules.every(r => enabledServerlessRules.value.has(r))
+}
+
+function isCatIndeterminate(catId) {
+  const rules = checksForCategoryInCloud(catId).map(c => c.rule_id)
+  const n = rules.filter(r => enabledServerlessRules.value.has(r)).length
+  return n > 0 && n < rules.length
+}
+
+function toggleCategory(catId, checked) {
+  const rules = checksForCategoryInCloud(catId).map(c => c.rule_id)
+  const set = new Set(enabledServerlessRules.value)
+  rules.forEach(r => { if (checked) set.add(r); else set.delete(r) })
+  enabledServerlessRules.value = set
+  saveServerlessEnabled()
+}
+
+function toggleServerlessRule(ruleId, checked) {
+  const set = new Set(enabledServerlessRules.value)
+  if (checked) set.add(ruleId); else set.delete(ruleId)
+  enabledServerlessRules.value = set
+  saveServerlessEnabled()
+}
+
+function toggleUsageRule(ruleId, checked) {
+  const set = new Set(enabledUsageRules.value)
+  if (checked) set.add(ruleId); else set.delete(ruleId)
+  enabledUsageRules.value = set
+  saveUsageEnabled()
+}
+
+function selectAllChecks(checked) {
+  if (activeTab.value === 'serverless') {
+    const set = new Set(enabledServerlessRules.value)
+    const checks = serverlessChecksForCloud.value
+    if (checked) checks.forEach(c => set.add(c.rule_id))
+    else checks.forEach(c => set.delete(c.rule_id))
+    enabledServerlessRules.value = set
+    saveServerlessEnabled()
+  } else {
+    const checks = usageChecksForCloud.value
+    const set = new Set(checked ? checks.map(c => c.rule_id) : [])
+    enabledUsageRules.value = set
+    saveUsageEnabled()
+  }
+}
+
 function selectCloud(id) {
   selectedCloud.value = id
 }
+
+onMounted(() => {
+  loadServerlessEnabled()
+  loadUsageEnabled()
+})
 
 async function runServerlessScan() {
   loadingServerless.value = true
   errorServerless.value = ''
   try {
     const base = import.meta.env.VITE_API_BASE || ''
+    const skipRules = SERVERLESS_CHECKS.filter(c => !enabledServerlessRules.value.has(c.rule_id)).map(c => c.rule_id)
     const res = await fetch(base + '/api/serverless-scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cloud: selectedCloud.value,
         region: undefined,
+        skip_rules: skipRules,
       }),
     })
     const data = await res.json()
@@ -271,6 +541,7 @@ async function runUsageScan() {
   errorUsage.value = ''
   try {
     const base = import.meta.env.VITE_API_BASE || ''
+    const skipRules = USAGE_CHECKS.filter(c => !enabledUsageRules.value.has(c.rule_id)).map(c => c.rule_id)
     const res = await fetch(base + '/api/usage-scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -278,6 +549,7 @@ async function runUsageScan() {
         cloud: selectedCloud.value,
         region: undefined,
         days_lookback: daysLookback.value,
+        skip_rules: skipRules,
       }),
     })
     const data = await res.json()
@@ -331,6 +603,39 @@ function exportCSV(findings, prefix) {
 }
 .scan-tab:hover { color: var(--text); }
 .scan-tab.active { background: rgba(14,165,233,0.12); color: var(--accent); border-color: var(--accent); }
+.checks-card { margin-bottom: 22px; padding: 0; overflow: hidden; }
+.checks-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; cursor: pointer; user-select: none; transition: background 0.12s; }
+.checks-header:hover { background: var(--bg-el-lo); }
+.checks-header-left { display: flex; align-items: center; gap: 10px; }
+.checks-header-right { display: flex; align-items: center; gap: 8px; }
+.checks-title { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+.checks-summary-badge { padding: 2px 9px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; background: rgba(14,165,233,0.12); color: var(--accent); }
+.checks-select-btn { padding: 4px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 600; background: var(--bg-el); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all 0.12s; }
+.checks-select-btn:hover { background: var(--bg-el-hi); color: var(--text); }
+.checks-arrow { transition: transform 0.2s; flex-shrink: 0; color: var(--text-muted); }
+.checks-arrow.open { transform: rotate(180deg); }
+.checks-body { padding: 0 18px 18px; border-top: 1px solid var(--border); }
+.checks-hint { font-size: 0.82rem; margin: 12px 0 16px; }
+.check-cat-block { margin-bottom: 18px; }
+.check-cat-header { margin-bottom: 8px; }
+.check-cat-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text); }
+.check-cat-toggle input[type="checkbox"] { cursor: pointer; width: 15px; height: 15px; flex-shrink: 0; }
+.cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.check-cat-label { font-weight: 700; }
+.check-cat-count { font-weight: 400; font-size: 0.78rem; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; padding-left: 24px; }
+.check-grid.usage-checks { padding-left: 0; }
+.check-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg-el-xlo); cursor: pointer; transition: all 0.12s; }
+.check-item:hover { background: var(--bg-el); border-color: rgba(14,165,233,0.2); }
+.check-item-disabled { opacity: 0.45; }
+.check-item input[type="checkbox"] { flex-shrink: 0; margin-top: 3px; cursor: pointer; width: 14px; height: 14px; }
+.check-item-body { flex: 1; min-width: 0; }
+.check-item-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 3px; }
+.check-item-name { font-size: 0.83rem; font-weight: 600; color: var(--text); }
+.check-item-desc { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }
+.panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.2s ease; overflow: hidden; }
+.panel-slide-enter-from, .panel-slide-leave-to { opacity: 0; max-height: 0; }
+.panel-slide-enter-to, .panel-slide-leave-from { max-height: 1200px; }
 .tab-panel { min-height: 200px; }
 .panel-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .days-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }

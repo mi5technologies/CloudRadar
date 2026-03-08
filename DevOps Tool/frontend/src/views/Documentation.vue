@@ -49,10 +49,87 @@
             vulnerabilities, compliance gaps, attack paths, and cost waste — and provides actionable
             remediation guidance for every finding.
           </p>
+          <p>
+            This documentation describes <strong>each part of the app</strong>: what it is, what each function or page does,
+            and how to use it. Use the <strong>Contents</strong> sidebar to jump to Setup, Security Scan, Findings,
+            Serverless &amp; Usage, Compliance, Attack Paths, Cost Optimisation, API, and more.
+          </p>
           <div class="info-box">
             <strong>Quick start:</strong> Go to <strong>Welcome</strong> → select your cloud → configure credentials → run a <strong>Security Scan</strong>.
             Press <kbd>Ctrl+K</kbd> (or <kbd>⌘K</kbd>) anywhere to open the command palette for fast navigation.
           </div>
+        </section>
+
+        <!-- ───── Setup (local, server, permissions) ───── -->
+        <section id="setup" class="doc-section-collapsible" :class="{ collapsed: !openSections['setup'] }">
+          <header class="doc-section-header" @click="toggleSection('setup')">
+            <h2 class="doc-section-title">Setup</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['setup'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['setup']">
+
+          <h3 id="setup-local">Run locally</h3>
+          <ol>
+            <li><strong>Install dependencies</strong> (from project root):
+              <pre class="code-block">pip install -r requirements.txt
+# or editable install so cspm is importable:
+pip install -e .
+cd frontend && npm install && npm run build</pre>
+            </li>
+            <li><strong>Start the app</strong> (backend serves API + built frontend):
+              <pre class="code-block">python -m cspm.cli ui --host 127.0.0.1 --port 8000</pre>
+              Open <code>http://127.0.0.1:8000</code>.
+            </li>
+            <li><strong>Development (frontend hot-reload)</strong>: run backend in one terminal, frontend in another:
+              <pre class="code-block"># Terminal 1
+python -m cspm.cli ui --host 127.0.0.1 --port 8000
+
+# Terminal 2
+cd frontend && npm run dev</pre>
+              Open <code>http://127.0.0.1:5173</code>; Vite proxies <code>/api</code> to the backend.
+            </li>
+          </ol>
+
+          <h3 id="setup-server">Run on a server (production)</h3>
+          <ol>
+            <li>Same install + build as above.</li>
+            <li>Bind to all interfaces and run behind a reverse proxy (Nginx/Caddy) with HTTPS:
+              <pre class="code-block">python -m cspm.cli ui --host 0.0.0.0 --port 8000</pre>
+            </li>
+            <li><strong>Docker</strong> (from project root):
+              <pre class="code-block">docker build -t cloudradar .
+docker run -p 8000:8000 -v $(pwd)/config.yaml:/app/config.yaml -v $(pwd)/snapshots:/app/snapshots cloudradar</pre>
+              Ensure <code>frontend/dist</code> is built before <code>docker build</code>, or use a multi-stage Dockerfile that runs <code>npm run build</code> in the image.</li>
+            <li>Use a process manager (systemd, supervisord) to keep the process running. See <code>docs/DEPLOYMENT.md</code> for Nginx SSE config and security notes.</li>
+          </ol>
+
+          <h3 id="setup-commands">Commands quick reference</h3>
+          <table class="docs-table">
+            <thead><tr><th>Command</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>python -m cspm.cli ui --host 127.0.0.1 --port 8000</code></td><td>Start Web UI (local)</td></tr>
+              <tr><td><code>python -m cspm.cli scan aws [--save-snapshot] [--only ec2,s3]</code></td><td>CLI scan; optional snapshot</td></tr>
+              <tr><td><code>python -m cspm.cli assets list [--cloud aws] [--output csv|json]</code></td><td>List assets (audit)</td></tr>
+              <tr><td><code>python -m cspm.cli compliance [--framework cis|soc2]</code></td><td>Compliance report</td></tr>
+              <tr><td><code>cd frontend && npm run build</code></td><td>Build Vue frontend</td></tr>
+            </tbody>
+          </table>
+
+          <h3 id="setup-aws-iam">AWS — IAM policy (JSON)</h3>
+          <p>Attach a policy like the one below to the IAM user or role used for scanning. For multi-account, use the management-account and member-account policies in <code>docs/iam-policies/</code>.</p>
+          <pre class="code-block code-block-json">{{ awsIamPolicySnippet }}</pre>
+
+          <h3 id="setup-gcp-roles">Google Cloud — required roles</h3>
+          <p>Grant the following roles to the service account used by CloudRadar. For org/folder scanning, also grant <code>roles/resourcemanager.projectViewer</code> and <code>roles/resourcemanager.folderViewer</code>. For Cloud Run and Cloud Functions discovery, ensure the service account has <code>run.services.list</code> and <code>cloudfunctions.functions.list</code> (e.g. Cloud Run Admin read-only or custom role).</p>
+          <pre class="code-block code-block-json">{{ gcpRolesSnippet }}</pre>
+
+          <h3 id="setup-azure-rbac">Azure — RBAC (custom role definition)</h3>
+          <p>Create a custom role with the actions below and assign it to the app registration at subscription or management group scope. Replace <code>YOUR_SUBSCRIPTION_ID</code> or management group ID in <code>AssignableScopes</code>.</p>
+          <pre class="code-block code-block-json">{{ azureRbacSnippet }}</pre>
+
+            </div>
+          </transition>
         </section>
 
         <!-- ───── Getting Started ───── -->
@@ -65,7 +142,7 @@
             <div class="doc-section-body" v-show="openSections['getting-started']">
 
           <h3 id="cloud-setup">1. Cloud credentials setup</h3>
-          <p>Before running any scan, configure credentials for the cloud you want to audit:</p>
+          <p>Before running any scan, configure credentials for the cloud you want to audit. From the app: go to <strong>Welcome</strong> (landing page) to select AWS, Google Cloud, or Azure; then complete <strong>Setup</strong> (or open Setup from the sidebar) to enter credentials. You can choose &quot;Setup later&quot; and configure from the Dashboard or before running a scan.</p>
 
           <div class="tabs-wrap">
             <div class="tab-block">
@@ -116,6 +193,7 @@
             <li>After the scan completes, review the structured <strong>Post-scan summary card</strong>.</li>
             <li>Go to <strong>Findings</strong> for detailed, filterable results with per-finding remediation.</li>
           </ol>
+          <p><strong>Alternative:</strong> For serverless-only and usage-based scans (Lambda, Step Functions, Cloud Run, Azure Functions, etc.), use <strong>Security → Serverless &amp; Usage</strong> — see the dedicated section below.</p>
 
             </div>
           </transition>
@@ -224,6 +302,43 @@
             <li><strong>⚡ Quick wins</strong> — up to 3 low-effort, high-impact fixes pulled from the scan's medium/low findings</li>
             <li>Download links for JSON and CSV reports</li>
           </ul>
+          <p><strong>Dedicated serverless and usage scans:</strong> For Lambda, Step Functions, API Gateway, SQS, DynamoDB, Cloud Run, Cloud Functions, and Azure Function Apps (and usage-based findings like idle Lambdas), use <strong>Security → Serverless &amp; Usage</strong> instead of or in addition to the full Security Scan.</p>
+
+            </div>
+          </transition>
+        </section>
+
+        <!-- ───── Serverless & Usage ───── -->
+        <section id="serverless-usage" class="doc-section-collapsible" :class="{ collapsed: !openSections['serverless-usage'] }">
+          <header class="doc-section-header" @click="toggleSection('serverless-usage')">
+            <h2 class="doc-section-title">Serverless &amp; Usage</h2>
+            <svg class="doc-section-arrow" :class="{ open: openSections['serverless-usage'] }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </header>
+          <transition name="doc-collapse">
+            <div class="doc-section-body" v-show="openSections['serverless-usage']">
+          <p>
+            The <strong>Serverless &amp; Usage</strong> page (Security → Serverless &amp; Usage) runs two types of targeted scans:
+            <strong>Serverless Security</strong> (misconfigurations on serverless resources) and <strong>Usage Scan</strong> (idle or problematic usage from metrics).
+            Both use a cloud-specific list of checks; the UI shows only the checks that apply to the selected cloud.
+          </p>
+          <h3 id="serverless-tabs">Cloud and scan tabs</h3>
+          <p>
+            At the top you choose the <strong>cloud</strong> (AWS, Google Cloud, or Azure) and the <strong>scan type</strong> (Serverless Security or Usage Scan).
+            The <strong>Configure checks</strong> panel and the run button update so that only relevant checks and actions are shown for that cloud.
+          </p>
+          <h3 id="serverless-security">Serverless Security tab</h3>
+          <p><strong>What it does:</strong> Discovers and scans serverless resources for security best practices (failure destinations, logging, secrets, public access, etc.).</p>
+          <ul>
+            <li><strong>AWS</strong> — Lambda (DLQ/OnFailure, timeout, env secrets, reserved concurrency, VPC, layers, extensions), Step Functions (logging, X-Ray), API Gateway (usage plan, logging), SQS (DLQ, visibility timeout), DynamoDB (streams).</li>
+            <li><strong>Google Cloud</strong> — Cloud Run (public invoker, min instances), Cloud Functions (public invoker, env/secrets prefer Secret Manager).</li>
+            <li><strong>Azure</strong> — Azure Function Apps (public network access, managed identity, app settings / Key Vault for secrets).</li>
+          </ul>
+          <p><strong>How to use:</strong> Select cloud → open <strong>Configure checks</strong> to enable or disable individual checks (or use Select all / Deselect all). Your selection is saved per cloud in <code>localStorage</code>. Click <strong>Run serverless scan</strong>. Results show total findings and a table; click a row to see detail and remediation. Export CSV is available.</p>
+          <h3 id="serverless-usage-scan">Usage Scan tab</h3>
+          <p><strong>What it does:</strong> Uses CloudWatch metrics (AWS only) to find Lambda functions that are idle (no invocations), have high error rates, or are throttled over a configurable number of days.</p>
+          <p><strong>How to use:</strong> When <strong>AWS</strong> is selected, configure the checks (idle, high errors, throttles), set <strong>Days of metrics</strong> (7, 14, or 30), then click <strong>Run usage scan</strong>. When <strong>Google Cloud</strong> or <strong>Azure</strong> is selected, the page shows that usage scan is currently available for AWS only and the run button is disabled; switch to AWS to run it.</p>
+          <h3 id="serverless-api">API</h3>
+          <p><code>POST /api/serverless-scan</code> — body: <code>{ "cloud", "region", "skip_rules" }</code>. <code>POST /api/usage-scan</code> — body: <code>{ "cloud", "days_lookback", "skip_rules" }</code>. Unchecked checks are sent as <code>skip_rules</code> so only enabled checks run.</p>
 
             </div>
           </transition>
@@ -996,7 +1111,7 @@
           </header>
           <transition name="doc-collapse">
             <div class="doc-section-body" v-show="openSections['api']">
-          <p>The Python backend exposes a REST API consumed by the Vue.js frontend:</p>
+          <p>The Python backend exposes a REST API consumed by the Vue.js frontend. For full reference and request/response shapes, see <strong>docs/API.md</strong>. For interactive exploration, open <strong>http://&lt;host&gt;:8000/docs</strong> when the backend is running (FastAPI OpenAPI/Swagger UI).</p>
           <div class="api-table">
             <div class="api-row header"><span>Method</span><span>Path</span><span>Description</span></div>
             <div class="api-row" v-for="ep in apiEndpoints" :key="ep.path">
@@ -1007,10 +1122,10 @@
           </div>
           <h3 id="api-scan-flow">Scan job flow</h3>
           <ol>
-            <li><code>POST /api/scan</code> → returns <code>{ job_id }</code></li>
-            <li>Frontend subscribes to <code>GET /api/scan/&lt;job_id&gt;/stream</code> (SSE) for real-time step events.</li>
-            <li>As fallback, frontend polls <code>GET /api/scan/&lt;job_id&gt;</code> every 1.5 seconds.</li>
-            <li>On completion, the scan result includes <code>summary</code> and <code>downloads</code>.</li>
+            <li><code>POST /api/jobs/scan</code> — body: <code>{ cloud, region, only?, save_snapshot? }</code>; returns <code>{ job_id }</code>.</li>
+            <li>Frontend subscribes to <code>GET /api/jobs/&lt;job_id&gt;/events</code> (SSE) for real-time step events.</li>
+            <li>As fallback, frontend polls <code>GET /api/jobs/&lt;job_id&gt;</code> for job status and result.</li>
+            <li>On completion, the result includes <code>summary</code> and <code>downloads</code> (tokens for report download).</li>
           </ol>
 
             </div>
@@ -1025,6 +1140,15 @@
           </header>
           <transition name="doc-collapse">
             <div class="doc-section-body" v-show="openSections['changelog']">
+          <div class="changelog-entry">
+            <div class="cl-version">v2.6</div>
+            <ul>
+              <li><strong>Serverless &amp; Usage</strong> — Dedicated page (Security → Serverless &amp; Usage): Serverless Security scan for AWS (Lambda, Step Functions, API Gateway, SQS, DynamoDB, layers/extensions), GCP (Cloud Run, Cloud Functions), Azure (Function Apps). Configure checks per cloud; selection persisted in localStorage.</li>
+              <li><strong>Usage Scan</strong> — AWS-only: idle Lambdas, high error rate, throttles from CloudWatch; configurable days. UI shows AWS-only message when GCP/Azure selected.</li>
+              <li><strong>Documentation</strong> — New <strong>Setup</strong> tab (local/server, commands, AWS/GCP/Azure permission JSON). New <strong>Serverless &amp; Usage</strong> section. Runbooks (first scan, fix findings, add rule), CHANGELOG.md, OpenAPI at <code>/docs</code>.</li>
+              <li>API scan flow corrected to <code>POST /api/jobs/scan</code>, <code>GET /api/jobs/&lt;id&gt;/events</code>; serverless-scan and usage-scan endpoints documented.</li>
+            </ul>
+          </div>
           <div class="changelog-entry">
             <div class="cl-version">v2.5</div>
             <ul>
@@ -1111,7 +1235,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const showFab = ref(false)
 
 const COLLAPSIBLE_IDS = [
-  'getting-started', 'dashboard', 'security-scan', 'findings', 'vulnerabilities', 'pentest',
+  'setup', 'getting-started', 'dashboard', 'security-scan', 'serverless-usage', 'findings', 'vulnerabilities', 'pentest',
   'security-checks', 'compliance', 'attack-paths', 'governance', 'cost-optimisation',
   'scan-history', 'notifications', 'scheduled-scans', 'ai-usage-security',
   'ui-features', 'recommendations-engine', 'tests', 'api', 'changelog',
@@ -1151,11 +1275,14 @@ function toggleSection(id) {
 }
 
 const SUBSECTION_TO_SECTION = {
+  'setup-local': 'setup', 'setup-server': 'setup', 'setup-commands': 'setup',
+  'setup-aws-iam': 'setup', 'setup-gcp-roles': 'setup', 'setup-azure-rbac': 'setup',
   'cloud-setup': 'getting-started', 'first-scan': 'getting-started',
   'dashboard-clouds': 'dashboard', 'dashboard-charts': 'dashboard', 'dashboard-recs': 'dashboard',
   'dashboard-quickwins': 'dashboard', 'dashboard-remediation': 'dashboard', 'dashboard-kpis': 'dashboard',
   'scan-aws': 'security-scan', 'scan-gcp': 'security-scan', 'scan-azure': 'security-scan',
   'scan-options': 'security-scan', 'scan-progress': 'security-scan', 'scan-summary': 'security-scan',
+  'serverless-tabs': 'serverless-usage', 'serverless-security': 'serverless-usage', 'serverless-usage-scan': 'serverless-usage', 'serverless-api': 'serverless-usage',
   'findings-filter': 'findings', 'findings-slideover': 'findings', 'findings-remediation': 'findings', 'findings-export': 'findings',
   'checks-aws': 'security-checks', 'checks-gcp': 'security-checks', 'checks-azure': 'security-checks',
   'compliance-gap': 'compliance',
@@ -1208,6 +1335,13 @@ onUnmounted(() => {
 
 const tocFlat = [
   { id: 'overview', label: 'Overview', sub: false },
+  { id: 'setup', label: 'Setup', sub: false },
+  { id: 'setup-local', label: 'Run locally', sub: true },
+  { id: 'setup-server', label: 'Run on server', sub: true },
+  { id: 'setup-commands', label: 'Commands reference', sub: true },
+  { id: 'setup-aws-iam', label: 'AWS IAM policy (JSON)', sub: true },
+  { id: 'setup-gcp-roles', label: 'GCP roles (JSON)', sub: true },
+  { id: 'setup-azure-rbac', label: 'Azure RBAC (JSON)', sub: true },
   { id: 'getting-started', label: 'Getting started', sub: false },
   { id: 'cloud-setup', label: 'Cloud credentials setup', sub: true },
   { id: 'first-scan', label: 'First scan', sub: true },
@@ -1222,6 +1356,11 @@ const tocFlat = [
   { id: 'scan-gcp', label: 'Google Cloud services', sub: true },
   { id: 'scan-azure', label: 'Azure services', sub: true },
   { id: 'scan-summary', label: 'Post-scan summary card', sub: true },
+  { id: 'serverless-usage', label: 'Serverless & Usage', sub: false },
+  { id: 'serverless-tabs', label: 'Cloud and scan tabs', sub: true },
+  { id: 'serverless-security', label: 'Serverless Security tab', sub: true },
+  { id: 'serverless-usage-scan', label: 'Usage Scan tab', sub: true },
+  { id: 'serverless-api', label: 'Serverless & Usage API', sub: true },
   { id: 'findings', label: 'Findings', sub: false },
   { id: 'findings-slideover', label: 'Slide-over panel', sub: true },
   { id: 'findings-remediation', label: 'Remediation tracking', sub: true },
@@ -1311,6 +1450,46 @@ function toggleToc(id) {
   openToc.value[id] = !openToc.value[id]
   saveToc()
 }
+
+const awsIamPolicySnippet = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "STSIdentity", "Effect": "Allow", "Action": ["sts:GetCallerIdentity"], "Resource": "*" },
+    { "Sid": "EC2Read", "Effect": "Allow", "Action": ["ec2:DescribeInstances", "ec2:DescribeRegions", "ec2:DescribeSecurityGroups", "ec2:DescribeVpcs", "ec2:DescribeVolumes", "ec2:DescribeFlowLogs"], "Resource": "*" },
+    { "Sid": "S3Read", "Effect": "Allow", "Action": ["s3:ListAllMyBuckets", "s3:GetBucketLocation", "s3:GetBucketEncryption", "s3:GetPublicAccessBlock"], "Resource": "*" },
+    { "Sid": "LambdaRead", "Effect": "Allow", "Action": ["lambda:ListFunctions", "lambda:GetFunction", "lambda:GetFunctionEventInvokeConfig"], "Resource": "*" },
+    { "Sid": "IAMRead", "Effect": "Allow", "Action": ["iam:ListUsers", "iam:ListRoles", "iam:ListAttachedRolePolicies", "iam:GetPolicy", "iam:GetPolicyVersion"], "Resource": "*" }
+  ]
+}
+// Full policy: see README.md and docs/iam-policies/aws-member-account-scanner-policy.json`
+
+const gcpRolesSnippet = `{
+  "per_project_roles": [
+    "roles/viewer",
+    "roles/securityreviewer",
+    "roles/cloudasset.viewer",
+    "roles/storage.objectViewer",
+    "roles/compute.viewer",
+    "roles/iam.securityReviewer"
+  ],
+  "org_or_folder": ["roles/resourcemanager.projectViewer", "roles/resourcemanager.folderViewer"]
+}
+// For Cloud Run / Cloud Functions: run.services.list, cloudfunctions.functions.list. See docs/iam-policies/gcp-required-roles.json`
+
+const azureRbacSnippet = `{
+  "Name": "CloudRadar Scanner",
+  "IsCustom": true,
+  "Actions": [
+    "Microsoft.Management/managementGroups/read",
+    "Microsoft.Resources/subscriptions/read",
+    "Microsoft.Compute/*/read",
+    "Microsoft.Storage/storageAccounts/read",
+    "Microsoft.Network/networkSecurityGroups/read",
+    "Microsoft.Authorization/*/read"
+  ],
+  "AssignableScopes": ["/subscriptions/YOUR_SUBSCRIPTION_ID"]
+}
+// Full: docs/iam-policies/azure-custom-role-definition.json`
 
 const testSuites = [
   { name: 'test_rule_engine',        desc: 'Security rule operators (true/false, equals, gt, in, not_in) fire correctly, finding fields are accurate, only non-compliant assets are flagged.', method: 'Unit' },
@@ -1456,17 +1635,28 @@ const azureChecks = [
 ]
 
 const apiEndpoints = [
-  { method: 'POST', path: '/api/scan',                   desc: 'Start a new security scan job' },
-  { method: 'GET',  path: '/api/scan/<job_id>',          desc: 'Poll scan job status and results' },
-  { method: 'GET',  path: '/api/scan/<job_id>/stream',   desc: 'SSE stream of real-time scan step events' },
-  { method: 'GET',  path: '/api/findings',               desc: 'Get latest findings (optionally filtered)' },
-  { method: 'POST', path: '/api/compliance',             desc: 'Run compliance framework checks' },
-  { method: 'GET',  path: '/api/attack-paths',           desc: 'Get detected attack paths' },
+  { method: 'GET',  path: '/api/health',                  desc: 'Health check for load balancers' },
+  { method: 'GET',  path: '/api/status',                  desc: 'Current config status (masked credentials)' },
+  { method: 'POST', path: '/api/setup/aws',               desc: 'Save AWS credentials' },
+  { method: 'POST', path: '/api/setup/gcp',               desc: 'Save GCP project and credentials path' },
+  { method: 'POST', path: '/api/setup/azure',             desc: 'Save Azure service principal' },
+  { method: 'POST', path: '/api/jobs/scan',               desc: 'Start a security scan job' },
+  { method: 'GET',  path: '/api/jobs/<job_id>',           desc: 'Get job status and result' },
+  { method: 'GET',  path: '/api/jobs/<job_id>/events',    desc: 'SSE stream of scan step events' },
+  { method: 'GET',  path: '/api/findings',                desc: 'Get latest findings' },
+  { method: 'POST', path: '/api/serverless-scan',         desc: 'Serverless security scan (AWS/GCP/Azure)' },
+  { method: 'POST', path: '/api/usage-scan',              desc: 'Usage scan (AWS Lambda metrics)' },
+  { method: 'POST', path: '/api/compliance',             desc: 'Run compliance (CIS, SOC2)' },
+  { method: 'POST', path: '/api/governance',             desc: 'Run governance report' },
+  { method: 'GET',  path: '/api/attack-paths',            desc: 'Get attack paths' },
   { method: 'POST', path: '/api/vulnerabilities',        desc: 'Run vulnerability checks' },
-  { method: 'POST', path: '/api/pentest',                desc: 'Run pentest / exploit mapping checks' },
-  { method: 'GET',  path: '/api/notifications',          desc: 'Get recent notifications' },
-  { method: 'GET',  path: '/api/scheduler',              desc: 'List scheduled scans' },
-  { method: 'POST', path: '/api/scheduler',              desc: 'Create a scheduled scan' },
+  { method: 'POST', path: '/api/pentest',                 desc: 'Run pentest / exploit mapping' },
+  { method: 'POST', path: '/api/cost',                    desc: 'Run cost optimisation scan' },
+  { method: 'GET',  path: '/api/notifications/config',    desc: 'Get notifications config' },
+  { method: 'POST', path: '/api/notifications/config',    desc: 'Set notifications config' },
+  { method: 'GET',  path: '/api/scheduler/jobs',          desc: 'List scheduled scans' },
+  { method: 'POST', path: '/api/scheduler/jobs',         desc: 'Create scheduled scan' },
+  { method: 'GET',  path: '/docs',                        desc: 'OpenAPI Swagger UI (when backend running)' },
 ]
 </script>
 

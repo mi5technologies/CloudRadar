@@ -145,4 +145,12 @@ def collect(
         result["stepfunctions"] = stepfunctions_scanner.scan_stepfunctions(raw_assets["stepfunctions"])
         report("Scanning Step Functions state machines", "success")
 
+    # --- GCP/Azure serverless (no dedicated scanner; pass through for serverless_scanner) ---
+    if raw_assets.get("cloud_run") and _include("cloud_run"):
+        result["cloud_run"] = raw_assets["cloud_run"]
+    if raw_assets.get("gcp_cloud_functions") and _include("gcp_cloud_functions"):
+        result["gcp_cloud_functions"] = raw_assets["gcp_cloud_functions"]
+    if raw_assets.get("azure_functions") and _include("azure_functions"):
+        result["azure_functions"] = raw_assets["azure_functions"]
+
     return result

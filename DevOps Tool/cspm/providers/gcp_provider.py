@@ -103,7 +103,7 @@ class GCPProvider(BaseProvider):
             if on_progress:
                 on_progress(step, status, detail)
 
-        all_types = {"gcs_bucket", "gce_instance", "gcp_firewall", "gcp_iam_binding"}
+        all_types = {"gcs_bucket", "gce_instance", "gcp_firewall", "gcp_iam_binding", "cloud_run", "gcp_cloud_functions"}
         types = set(asset_types) if asset_types else all_types
         result: dict[str, list[dict[str, Any]]] = {}
         project = self.project_id or ""
@@ -127,6 +127,16 @@ class GCPProvider(BaseProvider):
             report("Discovering GCP IAM bindings", "running")
             result["gcp_iam_binding"] = self._discover_iam_bindings()
             report("Discovering GCP IAM bindings", "success")
+
+        if "cloud_run" in types:
+            report("Discovering Cloud Run services", "running")
+            result["cloud_run"] = self._discover_cloud_run()
+            report("Discovering Cloud Run services", "success")
+
+        if "gcp_cloud_functions" in types:
+            report("Discovering GCP Cloud Functions", "running")
+            result["gcp_cloud_functions"] = self._discover_gcp_cloud_functions()
+            report("Discovering GCP Cloud Functions", "success")
 
         return result
 
@@ -245,6 +255,75 @@ class GCPProvider(BaseProvider):
                     "members": list(binding.members),
                     "has_allUsers": "allUsers" in binding.members or "allAuthenticatedUsers" in binding.members,
                 })
+            return result
+        except Exception:
+            return []
+
+    def _discover_cloud_run(self) -> list[dict[str, Any]]:
+        """Discover Cloud Run services across configured regions."""
+        try:
+            from google.cloud.run_v2 import ServicesClient
+            client = ServicesClient()
+            project = self.project_id or ""
+            regions = self.get_regions()
+            result = []
+            for loc in regions:
+                try:
+                    parent = f"projects/{project}/locations/{loc}"
+                    for svc in client.list_services(parent=parent):
+                        name_str = getattr(svc, "name", None) or ""
+                        svc_name = name_str.split("/")[-1] if name_str else "unknown"
+                        template = getattr(svc, "template", None)
+                        scaling = getattr(template, "scaling", None) if template else None
+                        min_instances = getattr(scaling, "min_instance_count", None) if scaling else None
+                        vpc = getattr(template, "vpc_access", None) if template else None
+                        vpc_connector = getattr(vpc, "connector", None) if vpc else None
+                        result.append({
+                            "id": name_str or svc_name,
+                            "name": svc_name,
+                            "type": "cloud_run",
+                            "region": loc,
+                            "project_id": project,
+                            "public_invoker": False,
+                            "min_instances": min_instances,
+                            "vpc_connector": vpc_connector,
+                        })
+                except Exception:
+                    continue
+            return result
+        except Exception:
+            return []
+
+    def _discover_gcp_cloud_functions(self) -> list[dict[str, Any]]:
+        """Discover Cloud Functions (Gen2) across configured regions."""
+        try:
+            from google.cloud.functions_v2 import FunctionServiceClient
+            client = FunctionServiceClient()
+            project = self.project_id or ""
+            regions = self.get_regions()
+            result = []
+            for loc in regions:
+                try:
+                    parent = f"projects/{project}/locations/{loc}"
+                    for fn in client.list_functions(parent=parent):
+                        name_str = getattr(fn, "name", None) or ""
+                        fn_name = name_str.split("/")[-1] if name_str else "unknown"
+                        env = getattr(fn, "environment_variables", None) or {}
+                        if hasattr(env, "items"):
+                            env = dict(env)
+                        secret_env = getattr(fn, "secret_environment_variables", None) or []
+                        result.append({
+                            "id": name_str or fn_name,
+                            "name": fn_name,
+                            "type": "gcp_cloud_functions",
+                            "region": loc,
+                            "project_id": project,
+                            "public_invoker": False,
+                            "environment_variables": env,
+                            "has_secret_env": len(secret_env) > 0,
+                        })
+                except Exception:
+                    continue
             return result
         except Exception:
             return []
